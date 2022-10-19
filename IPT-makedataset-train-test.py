@@ -4,6 +4,17 @@ import pandas as pd
 from tensorflow.keras.utils import to_categorical
 from sklearn.preprocessing import MinMaxScaler
 from pysndfx import AudioEffectsChain
+from sklearn.preprocessing import StandardScaler
+from sklearn import svm, tree, ensemble
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import IsolationForest
+from sklearn.neural_network import MLPClassifier
 
 sampling = 24000
 
@@ -378,18 +389,18 @@ for w in range(10):
 		print(i+1, "/", len(testDataPath))
 		y, srate = librosa.load(testDataPath[i], sr=sampling, mono=True)
 		# supprime silence
+		# サイレンスを消す
+
 		yt, index = librosa.effects.trim(y)
-		# prend la première seconde
-		# pour avoir 60 frames d'analyses
+		# 60フルアムスを得るために（ducherの実験から）
 		nbr_de_samples = math.floor((60/46.875) * sampling)-1
 		y1s = yt[0:nbr_de_samples]
 
 		# remplissage par des zéros à la fin
+		#　「nbr_de_samples」のエクアルじゃない配列に「0」を込む
 		if len(y1s)!=nbr_de_samples:
 			N = (nbr_de_samples-len(y1s))
 			y1s = np.concatenate([y1s, np.zeros(N)])
-			# print('concat!')
-			# np.pad(y1s, (0,N), 'constant', constant_values=(0,0))
 
 		specTestArray = get_spectrogram(y1s)
 		testArray.append(specTestArray)
@@ -421,7 +432,7 @@ for w in range(10):
 	for i in range(len(allSoundFilesName)):
 		for j in range(len(allTechniquesNames)):
 			if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
-				for k in range(4): #　natural spectrogram, 
+				for k in range(4): #　natural spectrogram, pitchshift, reverb, add noise
 					trainLabels.append(techniqueLabels[j])
 
 	print('... generate test labels ...')
@@ -431,26 +442,8 @@ for w in range(10):
 					testLabels.append(techniqueLabels[j])
 
 	# ========================================================================
-
-	from sklearn.preprocessing import StandardScaler
-	from sklearn import svm, tree, ensemble
-	from sklearn.svm import SVC
-	from sklearn.tree import DecisionTreeClassifier
-	from sklearn.neighbors import KNeighborsClassifier
-	from sklearn.ensemble import RandomForestClassifier
-	from sklearn.ensemble import AdaBoostClassifier
-	from sklearn.ensemble import HistGradientBoostingClassifier
-	from sklearn.ensemble import BaggingClassifier
-	from sklearn.ensemble import IsolationForest
-	from sklearn.neural_network import MLPClassifier
-
-	# ------------------------------------------------------------------------
-	# PREPROCESSING
-
-	# sequence = int(samples.shape[1])
-
-	# samples = samples.reshape(len(samples),128,44)
-
+	# 学習
+	print('... test models ...')
 	trainLabels = np.argmax(trainLabels, axis=1)
 	testLabels = np.argmax(testLabels, axis=1)
 
@@ -458,11 +451,7 @@ for w in range(10):
 	y_train = np.asarray(trainLabels)
 	X_test_2dim = np.asarray(testArray).reshape(len(testArray),-1)
 	y_test = np.asarray(testLabels)
-
-	# ------------------------------------------------------------------------
-	# CONSTRUCTION DU RÉSEAU
-	#Import svm model
-	print('... test models ...')
+	
 	ModelSVCrbf()
 	ModelSVCpoly()
 	ModelSVClinear()
