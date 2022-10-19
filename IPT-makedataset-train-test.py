@@ -5,10 +5,6 @@ from tensorflow.keras.utils import to_categorical
 from sklearn.preprocessing import MinMaxScaler
 from pysndfx import AudioEffectsChain
 
-# ========================================================================
-# PRÉPARATION
-# 準備
-
 sampling = 24000
 
 ACC_ModelMLP= []
@@ -23,7 +19,270 @@ ACC_ModelSVCrbf = []
 ACC_ModelSVCpoly = []
 ACC_ModelSVClinear = []
 
+# ========================================================================
+# 音響分析関数
+
+def get_spectrogram(audioSamples):
+    melSpec = librosa.feature.melspectrogram(y=audioSamples, sr=sampling) #valeurs par défaut: n_fft=2048, hop_length=512
+    # melSpec = np.log10(melSpec + 1e-9)
+    melSpec = librosa.power_to_db(melSpec)
+
+    spectrogram = scale_minmax(melSpec, 0, 1.).astype("float32")
+
+    return spectrogram
+
+# 規格化
+def scale_minmax(X, min=0.0, max=1.0):
+    X_std = (X - X.min()) / (X.max() - X.min())
+    X_scaled = X_std * (max - min) + min
+    return X_scaled
+
+# data augmentationするために音響変調
+def pitch_shift_sound(x):
+	random_number = np.random.random_sample()
+	random_number = (random_number * 40) - 20
+	random_tuning = 440 + random_number
+	change_tuning = librosa.A4_to_tuning(random_tuning)
+	return librosa.effects.pitch_shift(x, sr=sampling, n_steps=change_tuning, bins_per_octave=12)
+
+reverb = (
+    AudioEffectsChain()
+    .reverb()
+)
+
+def add_noise(x):
+	return x+0.002*np.random.randn(len(x))
+
+# ========================================================================
+#　アルゴリズム
+
+def ModelSVCrbf():
+	#Create a svm Classifier
+	clf = svm.SVC(kernel='rbf') # Linear Kernel
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("SVC rbf Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelSVCrbf.append(metrics.accuracy_score(y_test, y_pred))
+
+def ModelSVCpoly():
+	#Create a svm Classifier
+	clf = svm.SVC(kernel='poly') # Linear Kernel
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("SVC poly Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelSVCpoly.append(metrics.accuracy_score(y_test, y_pred))
+
+
+def ModelSVClinear():
+	#Create a svm Classifier
+	clf = svm.SVC(kernel='linear') # Linear Kernel
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("SVC linear Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelSVClinear.append(metrics.accuracy_score(y_test, y_pred))
+
+def ModelTree():
+	#Create a svm Classifier
+	clf = tree.DecisionTreeClassifier()
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("Decision Tree Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelTree.append(metrics.accuracy_score(y_test, y_pred))
+
+def ModelkNN():
+	#Create a svm Classifier
+	clf = KNeighborsClassifier(n_neighbors=10)
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("kNN Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelkNN.append(metrics.accuracy_score(y_test, y_pred))
+
+def ModelRandomForest():
+	#Create a svm Classifier
+	clf = RandomForestClassifier(max_depth=22, random_state=0)
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("Random Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelRandomForest.append(metrics.accuracy_score(y_test, y_pred))
+
+def ModelAdaBoost():
+	#Create a svm Classifier
+	clf = AdaBoostClassifier(n_estimators=100)
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("AdaBoost Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelAdaBoost.append(metrics.accuracy_score(y_test, y_pred))
+
+def ModelLightGBM():
+	#Create a svm Classifier
+	clf = HistGradientBoostingClassifier()
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("LightGBM Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelLightGBM.append(metrics.accuracy_score(y_test, y_pred))
+
+def ModelBagging():
+	#Create a svm Classifier
+	clf = BaggingClassifier()
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("Bagging Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelBagging.append(metrics.accuracy_score(y_test, y_pred))
+
+
+def ModelIsolationForest():
+	#Create a svm Classifier
+	clf = IsolationForest()
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("Isolation Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelIsolationForest.append(metrics.accuracy_score(y_test, y_pred))
+
+def ModelMLP():
+	#Create a svm Classifier
+	clf = MLPClassifier(random_state=0, max_iter=1000)
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("MLP Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelMLP.append(metrics.accuracy_score(y_test, y_pred))
+
+
+def findTechniques(soundFileName):
+	for j in range(len(allTechniquesNames)):
+	# Vérification si le type existe déjà dans la liste
+	#　楽器技術タイプのリストにはタイプ名前を調べる
+		if fnmatch.fnmatch(soundFileName, ('*-'+allTechniquesNames[j]+'-*-*')):
+			return 0
+
+	# Création d'un nouveau type dans la liste	
+	# 楽器技術のリストには新しいタイプを生成する
+	if fnmatch.fnmatch(soundFileName, '*-*-*'):
+		positions = []
+		techniqueName = ''
+		# Trouve les bornes où est inscrit le mode de jeu
+		for pos, char in enumerate(soundFileName):
+			if (char == '-'):
+				positions.append(pos)
+		a = positions[0]+1
+		b = positions[1]
+		# copie les charactères entre les bornes définies
+		for k in range(a, b):
+			techniqueName += soundFileName[k]
+			# techniqueName = techniqueName[1:]
+		# ajout du type dans la liste des types 
+		allTechniquesNames.append(techniqueName)
+		print('New technique created:', techniqueName)
+	else:
+		print('Error occured!')
+
+
+# ========================================================================
+# 実験を開始する
+
 for w in range(10):
+
+	# ========================================================================
+	# PRÉPARATION
+	# 準備
 	print('TURN ', w+1)
 
 	print('... load database ...')
@@ -45,6 +304,8 @@ for w in range(10):
 		allSoundFilesName.append(soundFileName)
 
 
+	# 25% des fichiers seront tirés au sort pour être les données de test
+	# テストのデータはデータベースの25パーセントから、ランドムで選択された
 	testDataPath = []
 	testTechniqueData = []
 	print('... separate test/train samples ...')
@@ -56,43 +317,12 @@ for w in range(10):
 		allSoundFilesName.pop(picktestDataPath)
 	print(len(allSoundFilesPath)//4, ' samples have been chosen to be test samples.')
 
+
 	# ========================================================================
-
-	def get_spectrogram(audioSamples):
-	    melSpec = librosa.feature.melspectrogram(y=audioSamples, sr=sampling) #valeurs par défaut: n_fft=2048, hop_length=512
-	    # melSpec = np.log10(melSpec + 1e-9)
-	    melSpec = librosa.power_to_db(melSpec)
-
-	    spectrogram = scale_minmax(melSpec, 0, 1.).astype("float32")
-
-	    return spectrogram
-
-	def scale_minmax(X, min=0.0, max=1.0):
-	    X_std = (X - X.min()) / (X.max() - X.min())
-	    X_scaled = X_std * (max - min) + min
-	    return X_scaled
-
-	def pitch_shift_sound(x):
-		random_number = np.random.random_sample()
-		random_number = (random_number * 40) - 20
-		random_tuning = 440 + random_number
-		change_tuning = librosa.A4_to_tuning(random_tuning)
-		return librosa.effects.pitch_shift(x, sr=sampling, n_steps=change_tuning, bins_per_octave=12)
-
-	reverb = (
-	    AudioEffectsChain()
-	    .reverb()
-	)
-
-	def add_noise(x):
-		return x+0.002*np.random.randn(len(x))
-
-	# Charge et analyse chaque son.
+	# 学習データ
+	# データセットを作る
+	# メルスペクトログラムでサンプルを分析する
 	samplesArray = []
-
-
-	# ========================================================================
-
 	print('... get train spectrogram ...')
 	for i in range(len(allSoundFilesPath)):
 		print(i+1, "/", len(allSoundFilesPath))
@@ -127,50 +357,22 @@ for w in range(10):
 		samplesArray.append(specArray)
 
 
-	# samplesArray = np.asarray(samplesArray).reshape(len(allSoundFilesPath),-1)
 	samplesArray = np.asarray(samplesArray)
 	print(samplesArray.shape)
 
+
 	testArray = []
-
 	allTechniquesNames = []
-
+	# 奏法の名前を探す
 	print('... get train techniques ...')
-	def findTechniques(soundFileName):
-		for j in range(len(allTechniquesNames)):
-		# Vérification si le type existe déjà dans la liste
-		#　楽器技術タイプのリストにはタイプ名前を調べる
-			if fnmatch.fnmatch(soundFileName, ('*-'+allTechniquesNames[j]+'-*-*')):
-				return 0
-
-		# Création d'un nouveau type dans la liste	
-		# 楽器技術のリストには新しいタイプを生成する
-		if fnmatch.fnmatch(soundFileName, '*-*-*'):
-			positions = []
-			techniqueName = ''
-			# Trouve les bornes où est inscrit le mode de jeu
-			for pos, char in enumerate(soundFileName):
-				if (char == '-'):
-					positions.append(pos)
-			a = positions[0]+1
-			b = positions[1]
-			# copie les charactères entre les bornes définies
-			for k in range(a, b):
-				techniqueName += soundFileName[k]
-				# techniqueName = techniqueName[1:]
-			# ajout du type dans la liste des types 
-			allTechniquesNames.append(techniqueName)
-			print('New technique created:', techniqueName)
-		else:
-			print('Error occured!')
 
 	for i in range(len(allSoundFilesName)):
 		findTechniques(allSoundFilesName[i])
 
 	# ========================================================================
-
+	# テストデータ
+	# data augmentationなし
 	testArray = []
-
 	print('... get test spectrogram ...')
 	for i in range(len(testDataPath)):
 		print(i+1, "/", len(testDataPath))
@@ -196,39 +398,12 @@ for w in range(10):
 	print(samplesArray.shape)
 
 	print('... get test techniques ...')
-	def findTechniques(soundFileName):
-		for j in range(len(allTechniquesNames)):
-		# Vérification si le type existe déjà dans la liste
-		#　楽器技術タイプのリストにはタイプ名前を調べる
-			if fnmatch.fnmatch(soundFileName, ('*-'+allTechniquesNames[j]+'-*-*')):
-				return 0
-
-		# Création d'un nouveau type dans la liste	
-		# 楽器技術のリストには新しいタイプを生成する
-		if fnmatch.fnmatch(soundFileName, '*-*-*'):
-			positions = []
-			techniqueName = ''
-			# Trouve les bornes où est inscrit le mode de jeu
-			for pos, char in enumerate(soundFileName):
-				if (char == '-'):
-					positions.append(pos)
-			a = positions[0]+1
-			b = positions[1]
-			# copie les charactères entre les bornes définies
-			for k in range(a, b):
-				techniqueName += soundFileName[k]
-				# techniqueName = techniqueName[1:]
-			# ajout du type dans la liste des types 
-			allTechniquesNames.append(techniqueName)
-			print('New technique created:', techniqueName)
-		else:
-			print('Error occured!')
-
 	for i in range(len(testTechniqueData)):
 		findTechniques(testTechniqueData[i])
 
 	# ========================================================================
 	# LABELISATION DES TYPES ET DES INSTRUMENTS
+	# 奏法の名前からラベルを作る
 
 	# Créer un dictionaire du format x: i avec une boucle d'énumération (pour garder une trace de l'indice)
 	techniquesMapping = {x: i for i, x in enumerate(allTechniquesNames)}
@@ -246,7 +421,7 @@ for w in range(10):
 	for i in range(len(allSoundFilesName)):
 		for j in range(len(allTechniquesNames)):
 			if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
-				for k in range(4):
+				for k in range(4): #　natural spectrogram, 
 					trainLabels.append(techniqueLabels[j])
 
 	print('... generate test labels ...')
@@ -288,224 +463,6 @@ for w in range(10):
 	# CONSTRUCTION DU RÉSEAU
 	#Import svm model
 	print('... test models ...')
-	def ModelSVCrbf():
-		#Create a svm Classifier
-		clf = svm.SVC(kernel='rbf') # Linear Kernel
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("SVC rbf Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelSVCrbf.append(metrics.accuracy_score(y_test, y_pred))
-
-	def ModelSVCpoly():
-		#Create a svm Classifier
-		clf = svm.SVC(kernel='poly') # Linear Kernel
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("SVC poly Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelSVCpoly.append(metrics.accuracy_score(y_test, y_pred))
-
-
-	def ModelSVClinear():
-		#Create a svm Classifier
-		clf = svm.SVC(kernel='linear') # Linear Kernel
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("SVC linear Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelSVClinear.append(metrics.accuracy_score(y_test, y_pred))
-
-	def ModelTree():
-		#Create a svm Classifier
-		clf = tree.DecisionTreeClassifier()
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("Decision Tree Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelTree.append(metrics.accuracy_score(y_test, y_pred))
-
-	def ModelkNN():
-		#Create a svm Classifier
-		clf = KNeighborsClassifier(n_neighbors=10)
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("kNN Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelkNN.append(metrics.accuracy_score(y_test, y_pred))
-
-	def ModelRandomForest():
-		#Create a svm Classifier
-		clf = RandomForestClassifier(max_depth=22, random_state=0)
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("Random Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelRandomForest.append(metrics.accuracy_score(y_test, y_pred))
-
-	def ModelAdaBoost():
-		#Create a svm Classifier
-		clf = AdaBoostClassifier(n_estimators=100)
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("AdaBoost Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelAdaBoost.append(metrics.accuracy_score(y_test, y_pred))
-
-	def ModelLightGBM():
-		#Create a svm Classifier
-		clf = HistGradientBoostingClassifier()
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("LightGBM Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelLightGBM.append(metrics.accuracy_score(y_test, y_pred))
-
-	def ModelBagging():
-		#Create a svm Classifier
-		clf = BaggingClassifier()
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("Bagging Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelBagging.append(metrics.accuracy_score(y_test, y_pred))
-
-
-	def ModelIsolationForest():
-		#Create a svm Classifier
-		clf = IsolationForest()
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("Isolation Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelIsolationForest.append(metrics.accuracy_score(y_test, y_pred))
-
-	def ModelMLP():
-		#Create a svm Classifier
-		clf = MLPClassifier(random_state=0, max_iter=1000)
-
-		#Train the model using the training sets
-		clf.fit(X_train_2dim, y_train)
-
-		#Predict the response for test dataset
-		y_pred = clf.predict(X_test_2dim)
-
-		#Import scikit-learn metrics module for accuracy calculation
-		from sklearn import metrics
-
-		# Model Accuracy: how often is the classifier correct?
-		print("MLP Accuracy:", metrics.accuracy_score(y_test, y_pred))
-		ACC_ModelMLP.append(metrics.accuracy_score(y_test, y_pred))
-
-	# ACC_Dense = []
-
-	# def Dense():
-
-	# 	model = Sequential()
-	# 	model.add(layers.Dense((128*44)//4, activation='relu', input_shape=(128*44,)))
-	# 	model.add(layers.Dropout(0.25))
-	# 	model.add(layers.Dense((128*44//8), activation='relu'))
-	# 	model.add(layers.Dropout(0.25))
-	# 	model.add(layers.Dense(labelstrue.shape[1], activation='softmax'))
-
-	# 	model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics='sparse_categorical_accuracy')
-	# 	model.fit(X_train_2dim, y_train, epochs = 50, validation_split=0.25, batch_size=64)
-	# 	accu = model.evaluate(X_test_2dim, y_test)
-	# 	ACC_Dense.append(accu[1])
-
-	# ACC_Conv2D = []
-
-	# def Conv2D():
-
-	# 	model = Sequential()
-	# 	model.add(layers.Conv2D(32, 3, activation='relu', input_shape=(128,44))
-	# 	model.add(layers.MaxPooling(pool_size=(3,3)))
-	# 	model.add(layers.Conv2D(32, 3, activation='relu'))
-	# 	model.add(layers.MaxPooling(pool_size=(2,2)))
-	# 	model.add(layers.Dropout(0.25))
-
-	# print("... turn ", i+1, " ...")
-	# ShuffleData()
 	ModelSVCrbf()
 	ModelSVCpoly()
 	ModelSVClinear()
