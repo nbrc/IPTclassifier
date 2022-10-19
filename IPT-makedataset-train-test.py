@@ -30,6 +30,8 @@ ACC_ModelSVCrbf = []
 ACC_ModelSVCpoly = []
 ACC_ModelSVClinear = []
 
+HOWMANYTESTS = 2
+
 # ========================================================================
 # 音響分析関数
 
@@ -48,6 +50,7 @@ def scale_minmax(X, min=0.0, max=1.0):
     X_scaled = X_std * (max - min) + min
     return X_scaled
 
+# -----
 # data augmentationするために音響変調
 def pitch_shift_sound(x):
 	random_number = np.random.random_sample()
@@ -257,6 +260,7 @@ def ModelMLP():
 	ACC_ModelMLP.append(metrics.accuracy_score(y_test, y_pred))
 
 
+# -----
 def findTechniques(soundFileName):
 	for j in range(len(allTechniquesNames)):
 	# Vérification si le type existe déjà dans la liste
@@ -285,11 +289,37 @@ def findTechniques(soundFileName):
 	else:
 		print('Error occured!')
 
+def getSpectrogram(path, mode):
+	y, srate = librosa.load(path, sr=sampling, mono=True)
+	# supprime silence
+	# サイレンスを消す
+	yt, index = librosa.effects.trim(y)
+
+	# 60フルアムスを得るために（ducherの実験から）
+	nbr_de_samples = math.floor((60/46.875) * sampling)-1
+	y1s = yt[0:nbr_de_samples]
+
+	# remplissage par des zéros à la fin
+	#　「nbr_de_samples」のエクアルじゃない配列に「0」を込む
+	if len(y1s)!=nbr_de_samples:
+		N = (nbr_de_samples-len(y1s))
+		y1s = np.concatenate([y1s, np.zeros(N)])
+
+	if mode=='train':
+		specNat = get_spectrogram(y1s)
+		specPitch = pitch_shift_sound(y1s)
+		specReverb = reverb(y1s)
+		specNoise = add_noise(y1s)
+		return specNat, specPitch, specReverb, specNoise
+
+	elif mode=='test':
+		specNat = get_spectrogram(y1s)
+		return specNat
 
 # ========================================================================
 # 実験を開始する
 
-for w in range(10):
+for w in range(HOWMANYTESTS):
 
 	# ========================================================================
 	# PRÉPARATION
@@ -335,48 +365,23 @@ for w in range(10):
 	# メルスペクトログラムでサンプルを分析する
 	samplesArray = []
 	print('... get train spectrogram ...')
+
 	for i in range(len(allSoundFilesPath)):
 		print(i+1, "/", len(allSoundFilesPath))
-		y, srate = librosa.load(allSoundFilesPath[i], sr=sampling, mono=True)
-		# supprime silence
-		yt, index = librosa.effects.trim(y)
-		# prend la première seconde
-		# pour avoir 60 frames d'analyses
-		nbr_de_samples = math.floor((60/46.875) * sampling)-1
-		y1s = yt[0:nbr_de_samples]
-
-		# remplissage par des zéros à la fin
-		if len(y1s)!=nbr_de_samples:
-			N = (nbr_de_samples-len(y1s))
-			y1s = np.concatenate([y1s, np.zeros(N)])
-			# print('concat!')
-			# np.pad(y1s, (0,N), 'constant', constant_values=(0,0))
-
-		specArray = get_spectrogram(y1s)
-		samplesArray.append(specArray)
-
-		pitch_shift_sound(y1s)
-		specArray = get_spectrogram(y1s)
-		samplesArray.append(specArray)
-
-		reverb(y1s)
-		specArray = get_spectrogram(y1s)
-		samplesArray.append(specArray)
-
-		add_noise(y1s)
-		specArray = get_spectrogram(y1s)
-		samplesArray.append(specArray)
-
+		specNat, specPitch, specReverb, specNoise = getSpectrogram(allSoundFilesPath[i], 'train')
+		samplesArray.append(specNat)
+		samplesArray.append(specPitch)
+		samplesArray.append(specReverb)
+		samplesArray.append(specNoise)
 
 	samplesArray = np.asarray(samplesArray)
 	print(samplesArray.shape)
 
-
 	testArray = []
 	allTechniquesNames = []
+
 	# 奏法の名前を探す
 	print('... get train techniques ...')
-
 	for i in range(len(allSoundFilesName)):
 		findTechniques(allSoundFilesName[i])
 
@@ -387,26 +392,11 @@ for w in range(10):
 	print('... get test spectrogram ...')
 	for i in range(len(testDataPath)):
 		print(i+1, "/", len(testDataPath))
-		y, srate = librosa.load(testDataPath[i], sr=sampling, mono=True)
-		# supprime silence
-		# サイレンスを消す
+		specNat = getSpectrogram(allSoundFilesPath[i], 'test')
+		testArray.append(specNat)
 
-		yt, index = librosa.effects.trim(y)
-		# 60フルアムスを得るために（ducherの実験から）
-		nbr_de_samples = math.floor((60/46.875) * sampling)-1
-		y1s = yt[0:nbr_de_samples]
-
-		# remplissage par des zéros à la fin
-		#　「nbr_de_samples」のエクアルじゃない配列に「0」を込む
-		if len(y1s)!=nbr_de_samples:
-			N = (nbr_de_samples-len(y1s))
-			y1s = np.concatenate([y1s, np.zeros(N)])
-
-		specTestArray = get_spectrogram(y1s)
-		testArray.append(specTestArray)
-
-	samplesArray = np.asarray(samplesArray)
-	print(samplesArray.shape)
+	testArray = np.asarray(testArray)
+	print(testArray.shape)
 
 	print('... get test techniques ...')
 	for i in range(len(testTechniqueData)):
@@ -469,8 +459,6 @@ ACC_ModelAdaBoost = np.asarray(ACC_ModelAdaBoost).sum() / len(ACC_ModelAdaBoost)
 ACC_ModelLightGBM = np.asarray(ACC_ModelLightGBM).sum() / len(ACC_ModelLightGBM)
 # ACC_ModelBagging = np.asarray(ACC_ModelBagging).sum() / len(ACC_ModelBagging)
 # ACC_ModelIsolationForest = np.asarray(ACC_ModelIsolationForest).sum() / len(ACC_ModelIsolationForest)
-# ACC_ModelMLP = np.asarray(ACC_ModelMLP).sum() / len(ACC_ModelMLP)
-# ACC_Dense = np.asarray(ACC_Dense).sum() / len(ACC_Dense)
 
 print("... final accuracy results ...")
 print("ACC_ModelSVCrbf: ",ACC_ModelSVCrbf)
@@ -483,5 +471,3 @@ print("ACC_ModelAdaBoost: ",ACC_ModelAdaBoost)
 print("ACC_ModelLightGBM: ",ACC_ModelLightGBM)
 # print("ACC_ModelBagging: ",ACC_ModelBagging)
 # print("ACC_ModelIsolationForest: ",ACC_ModelIsolationForest)
-# print("ACC_ModelMLP: ",ACC_ModelMLP)
-# print("ACC_Dense: ",ACC_Dense)
