@@ -30,7 +30,7 @@ ACC_ModelSVCrbf = []
 ACC_ModelSVCpoly = []
 ACC_ModelSVClinear = []
 
-HOWMANYTESTS = 2
+HOWMANYTESTS = 5
 
 # ========================================================================
 # 音響分析関数
@@ -70,7 +70,7 @@ def add_noise(x):
 # ========================================================================
 #　アルゴリズム
 
-def ModelSVCrbf():
+def ModelSVCrbf(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
 	clf = svm.SVC(kernel='rbf') # Linear Kernel
 
@@ -87,7 +87,7 @@ def ModelSVCrbf():
 	print("SVC rbf Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelSVCrbf.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelSVCpoly():
+def ModelSVCpoly(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
 	clf = svm.SVC(kernel='poly') # Linear Kernel
 
@@ -105,7 +105,7 @@ def ModelSVCpoly():
 	ACC_ModelSVCpoly.append(metrics.accuracy_score(y_test, y_pred))
 
 
-def ModelSVClinear():
+def ModelSVClinear(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
 	clf = svm.SVC(kernel='linear') # Linear Kernel
 
@@ -122,7 +122,7 @@ def ModelSVClinear():
 	print("SVC linear Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelSVClinear.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelTree():
+def ModelTree(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
 	clf = tree.DecisionTreeClassifier()
 
@@ -139,7 +139,7 @@ def ModelTree():
 	print("Decision Tree Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelTree.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelkNN():
+def ModelkNN(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
 	clf = KNeighborsClassifier(n_neighbors=10)
 
@@ -156,7 +156,7 @@ def ModelkNN():
 	print("kNN Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelkNN.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelRandomForest():
+def ModelRandomForest(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
 	clf = RandomForestClassifier(max_depth=22, random_state=0)
 
@@ -173,9 +173,9 @@ def ModelRandomForest():
 	print("Random Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelRandomForest.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelAdaBoost():
+def ModelAdaBoost(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
-	clf = AdaBoostClassifier(n_estimators=100)
+	clf = AdaBoostClassifier()
 
 	#Train the model using the training sets
 	clf.fit(X_train_2dim, y_train)
@@ -190,7 +190,7 @@ def ModelAdaBoost():
 	print("AdaBoost Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelAdaBoost.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelLightGBM():
+def ModelLightGBM(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
 	clf = HistGradientBoostingClassifier()
 
@@ -207,7 +207,7 @@ def ModelLightGBM():
 	print("LightGBM Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelLightGBM.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelBagging():
+def ModelBagging(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
 	clf = BaggingClassifier()
 
@@ -225,7 +225,7 @@ def ModelBagging():
 	ACC_ModelBagging.append(metrics.accuracy_score(y_test, y_pred))
 
 
-def ModelIsolationForest():
+def ModelIsolationForest(X_train_2dim, y_train, X_test_2dim, y_test):
 	#Create a svm Classifier
 	clf = IsolationForest()
 
@@ -241,24 +241,6 @@ def ModelIsolationForest():
 	# Model Accuracy: how often is the classifier correct?
 	print("Isolation Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelIsolationForest.append(metrics.accuracy_score(y_test, y_pred))
-
-def ModelMLP():
-	#Create a svm Classifier
-	clf = MLPClassifier(random_state=0, max_iter=1000)
-
-	#Train the model using the training sets
-	clf.fit(X_train_2dim, y_train)
-
-	#Predict the response for test dataset
-	y_pred = clf.predict(X_test_2dim)
-
-	#Import scikit-learn metrics module for accuracy calculation
-	from sklearn import metrics
-
-	# Model Accuracy: how often is the classifier correct?
-	print("MLP Accuracy:", metrics.accuracy_score(y_test, y_pred))
-	ACC_ModelMLP.append(metrics.accuracy_score(y_test, y_pred))
-
 
 # -----
 def findTechniques(soundFileName):
@@ -290,13 +272,20 @@ def findTechniques(soundFileName):
 		print('Error occured!')
 
 def getSpectrogram(path, mode):
+	specNat = []
+	specPitch = []
+	specReverb = []
+	specNoise = []
+
 	y, srate = librosa.load(path, sr=sampling, mono=True)
 	# supprime silence
 	# サイレンスを消す
 	yt, index = librosa.effects.trim(y)
 
 	# 60フルアムスを得るために（ducherの実験から）
-	nbr_de_samples = math.floor((60/46.875) * sampling)-1
+	window = 512
+	coeff = sampling / window
+	nbr_de_samples = math.floor((60/coeff) * sampling)-1
 	y1s = yt[0:nbr_de_samples]
 
 	# remplissage par des zéros à la fin
@@ -307,13 +296,25 @@ def getSpectrogram(path, mode):
 
 	if mode=='train':
 		specNat = get_spectrogram(y1s)
+		specNat = np.asarray(specNat).flatten()
+
 		specPitch = pitch_shift_sound(y1s)
+		specPitch = get_spectrogram(specPitch)
+		specPitch = np.asarray(specPitch).flatten()
+
 		specReverb = reverb(y1s)
+		specReverb = get_spectrogram(specReverb)
+		specReverb = np.asarray(specReverb).flatten()
+
 		specNoise = add_noise(y1s)
+		specNoise = get_spectrogram(specNoise)
+		specNoise = np.asarray(specNoise).flatten()
+
 		return specNat, specPitch, specReverb, specNoise
 
 	elif mode=='test':
 		specNat = get_spectrogram(y1s)
+		specNat = np.asarray(specNat).flatten()
 		return specNat
 
 # ========================================================================
@@ -356,9 +357,7 @@ for w in range(HOWMANYTESTS):
 		allSoundFilesPath.pop(picktestDataPath)
 		testTechniqueData.append(allSoundFilesName[picktestDataPath])
 		allSoundFilesName.pop(picktestDataPath)
-	print(len(allSoundFilesPath)//4, ' samples have been chosen to be test samples.')
-
-
+	print(len(testDataPath), ' samples have been chosen to be test samples.')
 	# ========================================================================
 	# 学習データ
 	# データセットを作る
@@ -374,7 +373,7 @@ for w in range(HOWMANYTESTS):
 		samplesArray.append(specReverb)
 		samplesArray.append(specNoise)
 
-	samplesArray = np.asarray(samplesArray)
+	samplesArray = np.asarray(samplesArray, dtype=object)
 	print(samplesArray.shape)
 
 	testArray = []
@@ -395,7 +394,7 @@ for w in range(HOWMANYTESTS):
 		specNat = getSpectrogram(allSoundFilesPath[i], 'test')
 		testArray.append(specNat)
 
-	testArray = np.asarray(testArray)
+	testArray = np.asarray(testArray, dtype=object)
 	print(testArray.shape)
 
 	print('... get test techniques ...')
@@ -437,17 +436,25 @@ for w in range(HOWMANYTESTS):
 	trainLabels = np.argmax(trainLabels, axis=1)
 	testLabels = np.argmax(testLabels, axis=1)
 
-	X_train_2dim = np.asarray(samplesArray).reshape(len(samplesArray),-1)
+	# X_train_2dim = np.asarray(samplesArray).reshape(len(samplesArray),-1)
+	X_train_2dim = np.asarray(samplesArray)
+
 	y_train = np.asarray(trainLabels)
-	X_test_2dim = np.asarray(testArray).reshape(len(testArray),-1)
+
+	# X_test_2dim = np.asarray(testArray).reshape(len(testArray),-1)
+	X_test_2dim = np.asarray(testArray)
+
 	y_test = np.asarray(testLabels)
 	
-	ModelSVCrbf()
-	ModelSVCpoly()
-	ModelSVClinear()
-	ModelTree()
-	ModelkNN()
-	ModelRandomForest()
+	ModelSVCrbf(X_train_2dim, y_train, X_test_2dim, y_test)
+	ModelSVCpoly(X_train_2dim, y_train, X_test_2dim, y_test)
+	ModelSVClinear(X_train_2dim, y_train, X_test_2dim, y_test)
+	ModelTree(X_train_2dim, y_train, X_test_2dim, y_test)
+	ModelkNN(X_train_2dim, y_train, X_test_2dim, y_test)
+	ModelRandomForest(X_train_2dim, y_train, X_test_2dim, y_test)
+	ModelLightGBM(X_train_2dim, y_train, X_test_2dim, y_test)
+	ModelBagging(X_train_2dim, y_train, X_test_2dim, y_test)
+	ModelIsolationForest(X_train_2dim, y_train, X_test_2dim, y_test)
 
 ACC_ModelSVCrbf = np.asarray(ACC_ModelSVCrbf).sum() / len(ACC_ModelSVCrbf)
 ACC_ModelSVCpoly = np.asarray(ACC_ModelSVCpoly).sum() / len(ACC_ModelSVCpoly)
@@ -457,8 +464,8 @@ ACC_ModelkNN = np.asarray(ACC_ModelkNN).sum() / len(ACC_ModelkNN)
 ACC_ModelRandomForest = np.asarray(ACC_ModelRandomForest).sum() / len(ACC_ModelRandomForest)
 ACC_ModelAdaBoost = np.asarray(ACC_ModelAdaBoost).sum() / len(ACC_ModelAdaBoost)
 ACC_ModelLightGBM = np.asarray(ACC_ModelLightGBM).sum() / len(ACC_ModelLightGBM)
-# ACC_ModelBagging = np.asarray(ACC_ModelBagging).sum() / len(ACC_ModelBagging)
-# ACC_ModelIsolationForest = np.asarray(ACC_ModelIsolationForest).sum() / len(ACC_ModelIsolationForest)
+ACC_ModelBagging = np.asarray(ACC_ModelBagging).sum() / len(ACC_ModelBagging)
+ACC_ModelIsolationForest = np.asarray(ACC_ModelIsolationForest).sum() / len(ACC_ModelIsolationForest)
 
 print("... final accuracy results ...")
 print("ACC_ModelSVCrbf: ",ACC_ModelSVCrbf)
