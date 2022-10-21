@@ -4,17 +4,6 @@ import pandas as pd
 from tensorflow.keras.utils import to_categorical
 from sklearn.preprocessing import MinMaxScaler
 from pysndfx import AudioEffectsChain
-from sklearn.preprocessing import StandardScaler
-from sklearn import svm, tree, ensemble
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.ensemble import BaggingClassifier
-from sklearn.ensemble import IsolationForest
-from sklearn.neural_network import MLPClassifier
 
 sampling = 24000
 
@@ -29,8 +18,6 @@ ACC_ModelTree = []
 ACC_ModelSVCrbf = []
 ACC_ModelSVCpoly = []
 ACC_ModelSVClinear = []
-
-HOWMANYTESTS = 5
 
 # ========================================================================
 # 音響分析関数
@@ -50,7 +37,6 @@ def scale_minmax(X, min=0.0, max=1.0):
     X_scaled = X_std * (max - min) + min
     return X_scaled
 
-# -----
 # data augmentationするために音響変調
 def pitch_shift_sound(x):
 	random_number = np.random.random_sample()
@@ -70,7 +56,7 @@ def add_noise(x):
 # ========================================================================
 #　アルゴリズム
 
-def ModelSVCrbf(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelSVCrbf():
 	#Create a svm Classifier
 	clf = svm.SVC(kernel='rbf') # Linear Kernel
 
@@ -87,7 +73,7 @@ def ModelSVCrbf(X_train_2dim, y_train, X_test_2dim, y_test):
 	print("SVC rbf Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelSVCrbf.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelSVCpoly(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelSVCpoly():
 	#Create a svm Classifier
 	clf = svm.SVC(kernel='poly') # Linear Kernel
 
@@ -105,7 +91,7 @@ def ModelSVCpoly(X_train_2dim, y_train, X_test_2dim, y_test):
 	ACC_ModelSVCpoly.append(metrics.accuracy_score(y_test, y_pred))
 
 
-def ModelSVClinear(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelSVClinear():
 	#Create a svm Classifier
 	clf = svm.SVC(kernel='linear') # Linear Kernel
 
@@ -122,7 +108,7 @@ def ModelSVClinear(X_train_2dim, y_train, X_test_2dim, y_test):
 	print("SVC linear Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelSVClinear.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelTree(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelTree():
 	#Create a svm Classifier
 	clf = tree.DecisionTreeClassifier()
 
@@ -139,7 +125,7 @@ def ModelTree(X_train_2dim, y_train, X_test_2dim, y_test):
 	print("Decision Tree Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelTree.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelkNN(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelkNN():
 	#Create a svm Classifier
 	clf = KNeighborsClassifier(n_neighbors=10)
 
@@ -156,7 +142,7 @@ def ModelkNN(X_train_2dim, y_train, X_test_2dim, y_test):
 	print("kNN Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelkNN.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelRandomForest(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelRandomForest():
 	#Create a svm Classifier
 	clf = RandomForestClassifier(max_depth=22, random_state=0)
 
@@ -173,9 +159,9 @@ def ModelRandomForest(X_train_2dim, y_train, X_test_2dim, y_test):
 	print("Random Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelRandomForest.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelAdaBoost(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelAdaBoost():
 	#Create a svm Classifier
-	clf = AdaBoostClassifier()
+	clf = AdaBoostClassifier(n_estimators=100)
 
 	#Train the model using the training sets
 	clf.fit(X_train_2dim, y_train)
@@ -190,7 +176,7 @@ def ModelAdaBoost(X_train_2dim, y_train, X_test_2dim, y_test):
 	print("AdaBoost Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelAdaBoost.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelLightGBM(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelLightGBM():
 	#Create a svm Classifier
 	clf = HistGradientBoostingClassifier()
 
@@ -207,7 +193,7 @@ def ModelLightGBM(X_train_2dim, y_train, X_test_2dim, y_test):
 	print("LightGBM Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelLightGBM.append(metrics.accuracy_score(y_test, y_pred))
 
-def ModelBagging(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelBagging():
 	#Create a svm Classifier
 	clf = BaggingClassifier()
 
@@ -225,7 +211,7 @@ def ModelBagging(X_train_2dim, y_train, X_test_2dim, y_test):
 	ACC_ModelBagging.append(metrics.accuracy_score(y_test, y_pred))
 
 
-def ModelIsolationForest(X_train_2dim, y_train, X_test_2dim, y_test):
+def ModelIsolationForest():
 	#Create a svm Classifier
 	clf = IsolationForest()
 
@@ -242,7 +228,24 @@ def ModelIsolationForest(X_train_2dim, y_train, X_test_2dim, y_test):
 	print("Isolation Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelIsolationForest.append(metrics.accuracy_score(y_test, y_pred))
 
-# -----
+def ModelMLP():
+	#Create a svm Classifier
+	clf = MLPClassifier(random_state=0, max_iter=1000)
+
+	#Train the model using the training sets
+	clf.fit(X_train_2dim, y_train)
+
+	#Predict the response for test dataset
+	y_pred = clf.predict(X_test_2dim)
+
+	#Import scikit-learn metrics module for accuracy calculation
+	from sklearn import metrics
+
+	# Model Accuracy: how often is the classifier correct?
+	print("MLP Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	ACC_ModelMLP.append(metrics.accuracy_score(y_test, y_pred))
+
+
 def findTechniques(soundFileName):
 	for j in range(len(allTechniquesNames)):
 	# Vérification si le type existe déjà dans la liste
@@ -271,56 +274,11 @@ def findTechniques(soundFileName):
 	else:
 		print('Error occured!')
 
-def getSpectrogram(path, mode):
-	specNat = []
-	specPitch = []
-	specReverb = []
-	specNoise = []
-
-	y, srate = librosa.load(path, sr=sampling, mono=True)
-	# supprime silence
-	# サイレンスを消す
-	yt, index = librosa.effects.trim(y)
-
-	# 60フルアムスを得るために（ducherの実験から）
-	window = 512
-	coeff = sampling / window
-	nbr_de_samples = math.floor((60/coeff) * sampling)-1
-	y1s = yt[0:nbr_de_samples]
-
-	# remplissage par des zéros à la fin
-	#　「nbr_de_samples」のエクアルじゃない配列に「0」を込む
-	if len(y1s)!=nbr_de_samples:
-		N = (nbr_de_samples-len(y1s))
-		y1s = np.concatenate([y1s, np.zeros(N)])
-
-	if mode=='train':
-		specNat = get_spectrogram(y1s)
-		specNat = np.asarray(specNat).flatten()
-
-		specPitch = pitch_shift_sound(y1s)
-		specPitch = get_spectrogram(specPitch)
-		specPitch = np.asarray(specPitch).flatten()
-
-		specReverb = reverb(y1s)
-		specReverb = get_spectrogram(specReverb)
-		specReverb = np.asarray(specReverb).flatten()
-
-		specNoise = add_noise(y1s)
-		specNoise = get_spectrogram(specNoise)
-		specNoise = np.asarray(specNoise).flatten()
-
-		return specNat, specPitch, specReverb, specNoise
-
-	elif mode=='test':
-		specNat = get_spectrogram(y1s)
-		specNat = np.asarray(specNat).flatten()
-		return specNat
 
 # ========================================================================
 # 実験を開始する
 
-for w in range(HOWMANYTESTS):
+for w in range(10):
 
 	# ========================================================================
 	# PRÉPARATION
@@ -358,29 +316,56 @@ for w in range(HOWMANYTESTS):
 		testTechniqueData.append(allSoundFilesName[picktestDataPath])
 		allSoundFilesName.pop(picktestDataPath)
 	print(len(testDataPath), ' samples have been chosen to be test samples.')
+
+
 	# ========================================================================
 	# 学習データ
 	# データセットを作る
 	# メルスペクトログラムでサンプルを分析する
 	samplesArray = []
 	print('... get train spectrogram ...')
-
 	for i in range(len(allSoundFilesPath)):
 		print(i+1, "/", len(allSoundFilesPath))
-		specNat, specPitch, specReverb, specNoise = getSpectrogram(allSoundFilesPath[i], 'train')
-		samplesArray.append(specNat)
-		samplesArray.append(specPitch)
-		samplesArray.append(specReverb)
-		samplesArray.append(specNoise)
+		y, srate = librosa.load(allSoundFilesPath[i], sr=sampling, mono=True)
+		# supprime silence
+		yt, index = librosa.effects.trim(y)
+		# prend la première seconde
+		# pour avoir 60 frames d'analyses
+		nbr_de_samples = math.floor((60/46.875) * sampling)-1
+		y1s = yt[0:nbr_de_samples]
 
-	samplesArray = np.asarray(samplesArray, dtype=object)
+		# remplissage par des zéros à la fin
+		if len(y1s)!=nbr_de_samples:
+			N = (nbr_de_samples-len(y1s))
+			y1s = np.concatenate([y1s, np.zeros(N)])
+			# print('concat!')
+			# np.pad(y1s, (0,N), 'constant', constant_values=(0,0))
+
+		specArray = get_spectrogram(y1s)
+		samplesArray.append(specArray)
+
+		pitch_shift_sound(y1s)
+		specArray = get_spectrogram(y1s)
+		samplesArray.append(specArray)
+
+		reverb(y1s)
+		specArray = get_spectrogram(y1s)
+		samplesArray.append(specArray)
+
+		add_noise(y1s)
+		specArray = get_spectrogram(y1s)
+		samplesArray.append(specArray)
+
+
+	samplesArray = np.asarray(samplesArray)
 	print(samplesArray.shape)
+
 
 	testArray = []
 	allTechniquesNames = []
-
 	# 奏法の名前を探す
 	print('... get train techniques ...')
+
 	for i in range(len(allSoundFilesName)):
 		findTechniques(allSoundFilesName[i])
 
@@ -391,11 +376,26 @@ for w in range(HOWMANYTESTS):
 	print('... get test spectrogram ...')
 	for i in range(len(testDataPath)):
 		print(i+1, "/", len(testDataPath))
-		specNat = getSpectrogram(allSoundFilesPath[i], 'test')
-		testArray.append(specNat)
+		y, srate = librosa.load(testDataPath[i], sr=sampling, mono=True)
+		# supprime silence
+		yt, index = librosa.effects.trim(y)
+		# prend la première seconde
+		# pour avoir 60 frames d'analyses
+		nbr_de_samples = math.floor((60/46.875) * sampling)-1
+		y1s = yt[0:nbr_de_samples]
 
-	testArray = np.asarray(testArray, dtype=object)
-	print(testArray.shape)
+		# remplissage par des zéros à la fin
+		if len(y1s)!=nbr_de_samples:
+			N = (nbr_de_samples-len(y1s))
+			y1s = np.concatenate([y1s, np.zeros(N)])
+			# print('concat!')
+			# np.pad(y1s, (0,N), 'constant', constant_values=(0,0))
+
+		specTestArray = get_spectrogram(y1s)
+		testArray.append(specTestArray)
+
+	samplesArray = np.asarray(samplesArray)
+	print(samplesArray.shape)
 
 	print('... get test techniques ...')
 	for i in range(len(testTechniqueData)):
@@ -421,7 +421,7 @@ for w in range(HOWMANYTESTS):
 	for i in range(len(allSoundFilesName)):
 		for j in range(len(allTechniquesNames)):
 			if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
-				for k in range(4): #　natural spectrogram, pitchshift, reverb, add noise
+				for k in range(4): #　natural spectrogram, 
 					trainLabels.append(techniqueLabels[j])
 
 	print('... generate test labels ...')
@@ -431,30 +431,44 @@ for w in range(HOWMANYTESTS):
 					testLabels.append(techniqueLabels[j])
 
 	# ========================================================================
-	# 学習
-	print('... test models ...')
+
+	from sklearn.preprocessing import StandardScaler
+	from sklearn import svm, tree, ensemble
+	from sklearn.svm import SVC
+	from sklearn.tree import DecisionTreeClassifier
+	from sklearn.neighbors import KNeighborsClassifier
+	from sklearn.ensemble import RandomForestClassifier
+	from sklearn.ensemble import AdaBoostClassifier
+	from sklearn.ensemble import HistGradientBoostingClassifier
+	from sklearn.ensemble import BaggingClassifier
+	from sklearn.ensemble import IsolationForest
+	from sklearn.neural_network import MLPClassifier
+
+	# ------------------------------------------------------------------------
+	# PREPROCESSING
+
+	# sequence = int(samples.shape[1])
+
+	# samples = samples.reshape(len(samples),128,44)
+
 	trainLabels = np.argmax(trainLabels, axis=1)
 	testLabels = np.argmax(testLabels, axis=1)
 
-	# X_train_2dim = np.asarray(samplesArray).reshape(len(samplesArray),-1)
-	X_train_2dim = np.asarray(samplesArray)
-
+	X_train_2dim = np.asarray(samplesArray).reshape(len(samplesArray),-1)
 	y_train = np.asarray(trainLabels)
-
-	# X_test_2dim = np.asarray(testArray).reshape(len(testArray),-1)
-	X_test_2dim = np.asarray(testArray)
-
+	X_test_2dim = np.asarray(testArray).reshape(len(testArray),-1)
 	y_test = np.asarray(testLabels)
-	
-	ModelSVCrbf(X_train_2dim, y_train, X_test_2dim, y_test)
-	ModelSVCpoly(X_train_2dim, y_train, X_test_2dim, y_test)
-	ModelSVClinear(X_train_2dim, y_train, X_test_2dim, y_test)
-	ModelTree(X_train_2dim, y_train, X_test_2dim, y_test)
-	ModelkNN(X_train_2dim, y_train, X_test_2dim, y_test)
-	ModelRandomForest(X_train_2dim, y_train, X_test_2dim, y_test)
-	ModelLightGBM(X_train_2dim, y_train, X_test_2dim, y_test)
-	ModelBagging(X_train_2dim, y_train, X_test_2dim, y_test)
-	ModelIsolationForest(X_train_2dim, y_train, X_test_2dim, y_test)
+
+	# ------------------------------------------------------------------------
+	# CONSTRUCTION DU RÉSEAU
+	#Import svm model
+	print('... test models ...')
+	ModelSVCrbf()
+	ModelSVCpoly()
+	ModelSVClinear()
+	ModelTree()
+	ModelkNN()
+	ModelRandomForest()
 
 ACC_ModelSVCrbf = np.asarray(ACC_ModelSVCrbf).sum() / len(ACC_ModelSVCrbf)
 ACC_ModelSVCpoly = np.asarray(ACC_ModelSVCpoly).sum() / len(ACC_ModelSVCpoly)
@@ -464,8 +478,10 @@ ACC_ModelkNN = np.asarray(ACC_ModelkNN).sum() / len(ACC_ModelkNN)
 ACC_ModelRandomForest = np.asarray(ACC_ModelRandomForest).sum() / len(ACC_ModelRandomForest)
 ACC_ModelAdaBoost = np.asarray(ACC_ModelAdaBoost).sum() / len(ACC_ModelAdaBoost)
 ACC_ModelLightGBM = np.asarray(ACC_ModelLightGBM).sum() / len(ACC_ModelLightGBM)
-ACC_ModelBagging = np.asarray(ACC_ModelBagging).sum() / len(ACC_ModelBagging)
-ACC_ModelIsolationForest = np.asarray(ACC_ModelIsolationForest).sum() / len(ACC_ModelIsolationForest)
+# ACC_ModelBagging = np.asarray(ACC_ModelBagging).sum() / len(ACC_ModelBagging)
+# ACC_ModelIsolationForest = np.asarray(ACC_ModelIsolationForest).sum() / len(ACC_ModelIsolationForest)
+# ACC_ModelMLP = np.asarray(ACC_ModelMLP).sum() / len(ACC_ModelMLP)
+# ACC_Dense = np.asarray(ACC_Dense).sum() / len(ACC_Dense)
 
 print("... final accuracy results ...")
 print("ACC_ModelSVCrbf: ",ACC_ModelSVCrbf)
@@ -478,3 +494,5 @@ print("ACC_ModelAdaBoost: ",ACC_ModelAdaBoost)
 print("ACC_ModelLightGBM: ",ACC_ModelLightGBM)
 # print("ACC_ModelBagging: ",ACC_ModelBagging)
 # print("ACC_ModelIsolationForest: ",ACC_ModelIsolationForest)
+# print("ACC_ModelMLP: ",ACC_ModelMLP)
+# print("ACC_Dense: ",ACC_Dense)
