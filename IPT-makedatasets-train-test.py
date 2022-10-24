@@ -4,6 +4,16 @@ import pandas as pd
 from tensorflow.keras.utils import to_categorical
 from sklearn.preprocessing import MinMaxScaler
 from pysndfx import AudioEffectsChain
+from sklearn.preprocessing import StandardScaler
+from sklearn import svm, tree, ensemble
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.ensemble import IsolationForest
 
 sampling = 24000
 
@@ -37,7 +47,7 @@ def scale_minmax(X, min=0.0, max=1.0):
     X_scaled = X_std * (max - min) + min
     return X_scaled
 
-# data augmentationするために音響変調
+# data augmentation: pitch_shift
 def pitch_shift_sound(x):
 	random_number = np.random.random_sample()
 	random_number = (random_number * 40) - 20
@@ -45,13 +55,34 @@ def pitch_shift_sound(x):
 	change_tuning = librosa.A4_to_tuning(random_tuning)
 	return librosa.effects.pitch_shift(x, sr=sampling, n_steps=change_tuning, bins_per_octave=12)
 
+# data augmentation: add reverb
 reverb = (
     AudioEffectsChain()
     .reverb()
 )
 
+# data augmentation: add noise
 def add_noise(x):
-	return x+0.002*np.random.randn(len(x))
+	random_number = np.random.random_sample()
+	rate = (random_number/1000) + 1e-9
+	return x+rate*np.random.randn(len(x))
+
+# data augmentation: shift sound in timeframe
+def shift_sound(x):
+	random_number = np.random.random_sample()
+	rate = (random_number*2) + 1e-9
+	return np.roll(x, int(len(x)//rate))
+
+# data augmentation: stretch sound
+def stretch_sound(x):
+    input_length = len(x)
+    random_number = np.random.random_sample()
+    rate = random_number * 1.5 # jusqu'à 1.5 x la vitesse originale
+    x = librosa.effects.time_stretch(x, rate=rate)
+    if len(x)>input_length:
+        return x[:input_length]
+    else:
+        return np.pad(x, (0, max(0, input_length - len(x))), "constant")
 
 # ========================================================================
 #　アルゴリズム
@@ -276,6 +307,93 @@ def findTechniques(soundFileName):
 
 
 # ========================================================================
+
+print('... load database ...')
+path = os.path.dirname(__file__)+'/database/'
+allSoundFilesPath = glob.glob(path+'/*/*.wav')
+allSoundFilesName = []
+
+print('... get file path ...')
+for path in range(len(allSoundFilesPath)):
+	positions = []
+	soundFileName = ''
+	soundFilePath = allSoundFilesPath[path]
+	for pos, char in enumerate(soundFilePath):
+		if (char == '/'):
+			positions.append(pos)
+	a = positions[-1]+1
+	for i in range(a, len(soundFilePath)):
+		soundFileName += soundFilePath[i]
+	allSoundFilesName.append(soundFileName)
+
+allTrainArray = []
+allTestArray = []
+
+print('... get spectrogram ...')
+for i in range(len(allSoundFilesPath)):
+	print(i+1, "/", len(allSoundFilesPath))
+	y, srate = librosa.load(allSoundFilesPath[i], sr=sampling, mono=True)
+	# supprime silence
+	yt, index = librosa.effects.trim(y)
+	# prend la première seconde
+	# pour avoir 60 frames d'analyses
+	window = 512
+	coeff = sampling / window
+	nbr_de_samples = math.floor((60/coeff) * sampling)-1
+	y1s = yt[0:nbr_de_samples]
+
+	# remplissage par des zéros à la fin
+	if len(y1s)!=nbr_de_samples:
+		N = (nbr_de_samples-len(y1s))
+		y1s = np.concatenate([y1s, np.zeros(N)])
+		# print('concat!')
+		# np.pad(y1s, (0,N), 'constant', constant_values=(0,0))
+
+	specArray = get_spectrogram(y1s)
+	allTrainArray.append(specArray)
+	allTestArray.append(specArray)
+
+	y2 = pitch_shift_sound(y1s)
+	specArray = get_spectrogram(y2)
+	allTrainArray.append(specArray)
+
+	y3 = reverb(y1s)
+	specArray = get_spectrogram(y3)
+	allTrainArray.append(specArray)
+
+	y4 = add_noise(y1s)
+	specArray = get_spectrogram(y4)
+	allTrainArray.append(specArray)
+
+allTechniquesNames = []
+for i in range(len(allSoundFilesName)):
+	findTechniques(allSoundFilesName[i])
+
+# ========================================================================
+# LABELISATION DES TYPES ET DES INSTRUMENTS
+# 奏法の名前からラベルを作る
+
+# Créer un dictionaire du format x: i avec une boucle d'énumération (pour garder une trace de l'indice)
+techniquesMapping = {x: i for i, x in enumerate(allTechniquesNames)}
+# Encodage binaire : on créer un array à partir du integer_mapping pour rassembler les nombres entiers
+# On associe une chiffre binaire à chaque nom de types
+techniquesEncoding = [techniquesMapping[techniques] for techniques in allTechniquesNames]
+# On utilise la fonctionnalité du tensorflow.keras qui fait l'encodage one-hot
+# ONE-HOTエンコーディング
+techniqueLabels = to_categorical(techniquesEncoding)
+
+allTrainLabels = []
+allTestLabels = []
+
+print('... generate labels ...')
+for i in range(len(allSoundFilesName)):
+	for j in range(len(allTechniquesNames)):
+		if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
+			allTestLabels.append(techniqueLabels[j])
+			for k in range(4): #　natural spectrogram + augs
+				allTrainLabels.append(techniqueLabels[j])
+
+# ========================================================================
 # 実験を開始する
 
 for w in range(10):
@@ -285,165 +403,48 @@ for w in range(10):
 	# 準備
 	print('TURN ', w+1)
 
-	print('... load database ...')
-	path = os.path.dirname(__file__)+'/database/'
-	allSoundFilesPath = glob.glob(path+'/*/*.wav')
-	allSoundFilesName = []
+	trainSamples = np.asarray(allTrainArray)
+	testSamples = []
 
-	print('... get file path ...')
-	for path in range(len(allSoundFilesPath)):
-		positions = []
-		soundFileName = ''
-		soundFilePath = allSoundFilesPath[path]
-		for pos, char in enumerate(soundFilePath):
-			if (char == '/'):
-				positions.append(pos)
-		a = positions[-1]+1
-		for i in range(a, len(soundFilePath)):
-			soundFileName += soundFilePath[i]
-		allSoundFilesName.append(soundFileName)
+	trainLabels = np.asarray(allTrainLabels)
+	testLabels = []
 
+	stackpick = []
 
 	# 25% des fichiers seront tirés au sort pour être les données de test
 	# テストのデータはデータベースの25パーセントから、ランドムで選択された
-	testDataPath = []
-	testTechniqueData = []
+
 	print('... separate test/train samples ...')
-	for i in range(len(allSoundFilesPath)//4):
-		picktestDataPath = np.random.randint(len(allSoundFilesPath))
-		testDataPath.append(allSoundFilesPath[picktestDataPath])
-		allSoundFilesPath.pop(picktestDataPath)
-		testTechniqueData.append(allSoundFilesName[picktestDataPath])
-		allSoundFilesName.pop(picktestDataPath)
-	print(len(testDataPath), ' samples have been chosen to be test samples.')
+	for i in range(len(allTestArray)//4): # on veut 25% sans la data augmentation
+		pick = np.random.randint(len(allTestArray))
+
+		testSamples.append(allTestArray[pick])
+		testLabels.append(allTestLabels[pick])
+
+		stackpick.append(pick)
 
 
-	# ========================================================================
-	# 学習データ
-	# データセットを作る
-	# メルスペクトログラムでサンプルを分析する
-	samplesArray = []
-	print('... get train spectrogram ...')
-	for i in range(len(allSoundFilesPath)):
-		print(i+1, "/", len(allSoundFilesPath))
-		y, srate = librosa.load(allSoundFilesPath[i], sr=sampling, mono=True)
-		# supprime silence
-		yt, index = librosa.effects.trim(y)
-		# prend la première seconde
-		# pour avoir 60 frames d'analyses
-		nbr_de_samples = math.floor((60/46.875) * sampling)-1
-		y1s = yt[0:nbr_de_samples]
+	stackpick = np.asarray(stackpick)
+	stackpick = np.sort(stackpick)
 
-		# remplissage par des zéros à la fin
-		if len(y1s)!=nbr_de_samples:
-			N = (nbr_de_samples-len(y1s))
-			y1s = np.concatenate([y1s, np.zeros(N)])
-			# print('concat!')
-			# np.pad(y1s, (0,N), 'constant', constant_values=(0,0))
+	for j in range(len(stackpick)):
 
-		specArray = get_spectrogram(y1s)
-		samplesArray.append(specArray)
+		for k in range(4):
+			trainSamples = np.delete(trainSamples, stackpick[j], 0)
+			trainLabels = np.delete(trainLabels, stackpick[j], 0)
 
-		pitch_shift_sound(y1s)
-		specArray = get_spectrogram(y1s)
-		samplesArray.append(specArray)
+		stackpick = stackpick-4
 
-		reverb(y1s)
-		specArray = get_spectrogram(y1s)
-		samplesArray.append(specArray)
+	print(len(testSamples), ' samples have been chosen to be test samples.')
 
-		add_noise(y1s)
-		specArray = get_spectrogram(y1s)
-		samplesArray.append(specArray)
-
-
-	samplesArray = np.asarray(samplesArray)
-	print(samplesArray.shape)
-
-
-	testArray = []
-	allTechniquesNames = []
-	# 奏法の名前を探す
-	print('... get train techniques ...')
-
-	for i in range(len(allSoundFilesName)):
-		findTechniques(allSoundFilesName[i])
+	print(trainSamples.shape)
+	print(trainLabels.shape)
+	testSamples = np.asarray(testSamples)
+	print(testSamples.shape)
+	testLabels = np.asarray(testLabels)
+	print(testLabels.shape)
 
 	# ========================================================================
-	# テストデータ
-	# data augmentationなし
-	testArray = []
-	print('... get test spectrogram ...')
-	for i in range(len(testDataPath)):
-		print(i+1, "/", len(testDataPath))
-		y, srate = librosa.load(testDataPath[i], sr=sampling, mono=True)
-		# supprime silence
-		yt, index = librosa.effects.trim(y)
-		# prend la première seconde
-		# pour avoir 60 frames d'analyses
-		nbr_de_samples = math.floor((60/46.875) * sampling)-1
-		y1s = yt[0:nbr_de_samples]
-
-		# remplissage par des zéros à la fin
-		if len(y1s)!=nbr_de_samples:
-			N = (nbr_de_samples-len(y1s))
-			y1s = np.concatenate([y1s, np.zeros(N)])
-			# print('concat!')
-			# np.pad(y1s, (0,N), 'constant', constant_values=(0,0))
-
-		specTestArray = get_spectrogram(y1s)
-		testArray.append(specTestArray)
-
-	samplesArray = np.asarray(samplesArray)
-	print(samplesArray.shape)
-
-	print('... get test techniques ...')
-	for i in range(len(testTechniqueData)):
-		findTechniques(testTechniqueData[i])
-
-	# ========================================================================
-	# LABELISATION DES TYPES ET DES INSTRUMENTS
-	# 奏法の名前からラベルを作る
-
-	# Créer un dictionaire du format x: i avec une boucle d'énumération (pour garder une trace de l'indice)
-	techniquesMapping = {x: i for i, x in enumerate(allTechniquesNames)}
-	# Encodage binaire : on créer un array à partir du integer_mapping pour rassembler les nombres entiers
-	# On associe une chiffre binaire à chaque nom de types
-	techniquesEncoding = [techniquesMapping[techniques] for techniques in allTechniquesNames]
-	# On utilise la fonctionnalité du tensorflow.keras qui fait l'encodage one-hot
-	# ONE-HOTエンコーディング
-	techniqueLabels = to_categorical(techniquesEncoding)
-
-	trainLabels = []
-	testLabels = []
-
-	print('... generate train labels ...')
-	for i in range(len(allSoundFilesName)):
-		for j in range(len(allTechniquesNames)):
-			if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
-				for k in range(4): #　natural spectrogram, 
-					trainLabels.append(techniqueLabels[j])
-
-	print('... generate test labels ...')
-	for i in range(len(testTechniqueData)):
-		for j in range(len(allTechniquesNames)):
-			if fnmatch.fnmatch(testTechniqueData[i], ('*-'+allTechniquesNames[j]+'-*-*')):
-					testLabels.append(techniqueLabels[j])
-
-	# ========================================================================
-
-	from sklearn.preprocessing import StandardScaler
-	from sklearn import svm, tree, ensemble
-	from sklearn.svm import SVC
-	from sklearn.tree import DecisionTreeClassifier
-	from sklearn.neighbors import KNeighborsClassifier
-	from sklearn.ensemble import RandomForestClassifier
-	from sklearn.ensemble import AdaBoostClassifier
-	from sklearn.ensemble import HistGradientBoostingClassifier
-	from sklearn.ensemble import BaggingClassifier
-	from sklearn.ensemble import IsolationForest
-	from sklearn.neural_network import MLPClassifier
-
 	# ------------------------------------------------------------------------
 	# PREPROCESSING
 
@@ -454,9 +455,9 @@ for w in range(10):
 	trainLabels = np.argmax(trainLabels, axis=1)
 	testLabels = np.argmax(testLabels, axis=1)
 
-	X_train_2dim = np.asarray(samplesArray).reshape(len(samplesArray),-1)
+	X_train_2dim = np.asarray(trainSamples).reshape(len(trainSamples),-1)
 	y_train = np.asarray(trainLabels)
-	X_test_2dim = np.asarray(testArray).reshape(len(testArray),-1)
+	X_test_2dim = np.asarray(testSamples).reshape(len(testSamples),-1)
 	y_test = np.asarray(testLabels)
 
 	# ------------------------------------------------------------------------
@@ -480,8 +481,6 @@ ACC_ModelAdaBoost = np.asarray(ACC_ModelAdaBoost).sum() / len(ACC_ModelAdaBoost)
 ACC_ModelLightGBM = np.asarray(ACC_ModelLightGBM).sum() / len(ACC_ModelLightGBM)
 # ACC_ModelBagging = np.asarray(ACC_ModelBagging).sum() / len(ACC_ModelBagging)
 # ACC_ModelIsolationForest = np.asarray(ACC_ModelIsolationForest).sum() / len(ACC_ModelIsolationForest)
-# ACC_ModelMLP = np.asarray(ACC_ModelMLP).sum() / len(ACC_ModelMLP)
-# ACC_Dense = np.asarray(ACC_Dense).sum() / len(ACC_Dense)
 
 print("... final accuracy results ...")
 print("ACC_ModelSVCrbf: ",ACC_ModelSVCrbf)
@@ -494,5 +493,3 @@ print("ACC_ModelAdaBoost: ",ACC_ModelAdaBoost)
 print("ACC_ModelLightGBM: ",ACC_ModelLightGBM)
 # print("ACC_ModelBagging: ",ACC_ModelBagging)
 # print("ACC_ModelIsolationForest: ",ACC_ModelIsolationForest)
-# print("ACC_ModelMLP: ",ACC_ModelMLP)
-# print("ACC_Dense: ",ACC_Dense)
