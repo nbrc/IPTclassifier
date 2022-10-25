@@ -397,16 +397,6 @@ for i in range(len(allSoundFilesName)):
 			allLabelsReverb.append(techniqueLabels[j])
 			allLabelsNoise.append(techniqueLabels[j])
 
-allTrainSpec = np.asarray(allTrainSpec)
-allTrainPitch = np.asarray(allTrainPitch)
-allTrainReverb = np.asarray(allTrainReverb)
-allTrainNoise = np.asarray(allTrainNoise)
-
-allLabelsSpec = np.asarray(allLabelsSpec)
-allLabelsPitch = np.asarray(allLabelsPitch)
-allLabelsReverb = np.asarray(allLabelsReverb)
-allLabelsNoise = np.asarray(allLabelsNoise)
-
 # print(allTrainSpec.shape)
 # print(allTrainPitch.shape)
 # print(allTrainReverb.shape)
@@ -424,6 +414,16 @@ for w in range(howManyTests):
 
 	print('... TEST ', w+1, ' ...')
 
+	exp_allTrainSpec = np.asarray(allTrainSpec)
+	exp_allTrainPitch = np.asarray(allTrainPitch)
+	exp_allTrainReverb = np.asarray(allTrainReverb)
+	exp_allTrainNoise = np.asarray(allTrainNoise)
+
+	exp_allLabelsSpec = np.asarray(allLabelsSpec)
+	exp_allLabelsPitch = np.asarray(allLabelsPitch)
+	exp_allLabelsReverb = np.asarray(allLabelsReverb)
+	exp_allLabelsNoise = np.asarray(allLabelsNoise)
+
 	testSamples = []
 	testLabels = []
 
@@ -432,20 +432,20 @@ for w in range(howManyTests):
 
 	print('... separate test/train data ...')
 	for i in range(len(allTrainSpec)//4): # on veut 25% sans la data augmentation
-		pick = np.random.randint(len(allTrainSpec))
+		pick = np.random.randint(len(exp_allTrainSpec))
 
-		testSamples.append(allTrainSpec[pick])
-		testLabels.append(allLabelsSpec[pick])
+		testSamples.append(exp_allTrainSpec[pick])
+		testLabels.append(exp_allLabelsSpec[pick])
 
-		allTrainSpec = np.delete(allTrainSpec, pick, 0)
-		allTrainPitch = np.delete(allTrainPitch, pick, 0)
-		allTrainReverb = np.delete(allTrainReverb, pick, 0)
-		allTrainNoise = np.delete(allTrainNoise, pick, 0)
+		exp_allTrainSpec = np.delete(exp_allTrainSpec, pick, 0)
+		exp_allTrainPitch = np.delete(exp_allTrainPitch, pick, 0)
+		exp_allTrainReverb = np.delete(exp_allTrainReverb, pick, 0)
+		exp_allTrainNoise = np.delete(exp_allTrainNoise, pick, 0)
 
-		allLabelsSpec = np.delete(allLabelsSpec, pick, 0)
-		allLabelsPitch = np.delete(allLabelsPitch, pick, 0)
-		allLabelsReverb = np.delete(allLabelsReverb, pick, 0)
-		allLabelsNoise = np.delete(allLabelsNoise, pick, 0)
+		exp_allLabelsSpec = np.delete(exp_allLabelsSpec, pick, 0)
+		exp_allLabelsPitch = np.delete(exp_allLabelsPitch, pick, 0)
+		exp_allLabelsReverb = np.delete(exp_allLabelsReverb, pick, 0)
+		exp_allLabelsNoise = np.delete(exp_allLabelsNoise, pick, 0)
 
 
 	# print(allTrainSpec.shape)
@@ -453,8 +453,8 @@ for w in range(howManyTests):
 	# print(allTrainReverb.shape)
 	# print(allTrainNoise.shape)
 
-	trainSamples = np.concatenate([allTrainSpec, allTrainPitch, allTrainReverb, allTrainNoise])
-	trainLabels = np.concatenate([allLabelsSpec, allLabelsPitch, allLabelsReverb, allLabelsNoise])
+	trainSamples = np.concatenate([exp_allTrainSpec, exp_allTrainPitch, exp_allTrainReverb, exp_allTrainNoise])
+	trainLabels = np.concatenate([exp_allLabelsSpec, exp_allLabelsPitch, exp_allLabelsReverb, exp_allLabelsNoise])
 
 	print('... arrays are ready ...')
 
