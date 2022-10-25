@@ -29,6 +29,8 @@ ACC_ModelSVCrbf = []
 ACC_ModelSVCpoly = []
 ACC_ModelSVClinear = []
 
+howManyTests = 10
+
 # ========================================================================
 # 音響分析関数
 
@@ -326,8 +328,10 @@ for path in range(len(allSoundFilesPath)):
 		soundFileName += soundFilePath[i]
 	allSoundFilesName.append(soundFileName)
 
-allTrainArray = []
-allTestArray = []
+allTrainSpec = []
+allTrainPitch = []
+allTrainReverb = []
+allTrainNoise = []
 
 print('... get spectrogram ...')
 for i in range(len(allSoundFilesPath)):
@@ -346,24 +350,21 @@ for i in range(len(allSoundFilesPath)):
 	if len(y1s)!=nbr_de_samples:
 		N = (nbr_de_samples-len(y1s))
 		y1s = np.concatenate([y1s, np.zeros(N)])
-		# print('concat!')
-		# np.pad(y1s, (0,N), 'constant', constant_values=(0,0))
 
 	specArray = get_spectrogram(y1s)
-	allTrainArray.append(specArray)
-	allTestArray.append(specArray)
+	allTrainSpec.append(specArray)
 
 	y2 = pitch_shift_sound(y1s)
 	specArray = get_spectrogram(y2)
-	allTrainArray.append(specArray)
+	allTrainPitch.append(specArray)
 
 	y3 = reverb(y1s)
 	specArray = get_spectrogram(y3)
-	allTrainArray.append(specArray)
+	allTrainReverb.append(specArray)
 
 	y4 = add_noise(y1s)
 	specArray = get_spectrogram(y4)
-	allTrainArray.append(specArray)
+	allTrainNoise.append(specArray)
 
 allTechniquesNames = []
 for i in range(len(allSoundFilesName)):
@@ -382,60 +383,80 @@ techniquesEncoding = [techniquesMapping[techniques] for techniques in allTechniq
 # ONE-HOTエンコーディング
 techniqueLabels = to_categorical(techniquesEncoding)
 
-allTrainLabels = []
-allTestLabels = []
+allLabelsSpec = []
+allLabelsPitch = []
+allLabelsReverb = []
+allLabelsNoise = []
 
 print('... generate labels ...')
 for i in range(len(allSoundFilesName)):
 	for j in range(len(allTechniquesNames)):
 		if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
-			allTestLabels.append(techniqueLabels[j])
-			for k in range(4): #　natural spectrogram + augs
-				allTrainLabels.append(techniqueLabels[j])
+			allLabelsSpec.append(techniqueLabels[j])
+			allLabelsPitch.append(techniqueLabels[j])
+			allLabelsReverb.append(techniqueLabels[j])
+			allLabelsNoise.append(techniqueLabels[j])
+
+allTrainSpec = np.asarray(allTrainSpec)
+allTrainPitch = np.asarray(allTrainPitch)
+allTrainReverb = np.asarray(allTrainReverb)
+allTrainNoise = np.asarray(allTrainNoise)
+
+allLabelsSpec = np.asarray(allLabelsSpec)
+allLabelsPitch = np.asarray(allLabelsPitch)
+allLabelsReverb = np.asarray(allLabelsReverb)
+allLabelsNoise = np.asarray(allLabelsNoise)
+
+# print(allTrainSpec.shape)
+# print(allTrainPitch.shape)
+# print(allTrainReverb.shape)
+# print(allTrainNoise.shape)
 
 # ========================================================================
 # 実験を開始する
 
-for w in range(10):
+print("... classifiers would be tested", howManyTests, "times ...")
 
-	# ========================================================================
-	# PRÉPARATION
-	# 準備
-	print('TURN ', w+1)
+for w in range(howManyTests):
 
-	trainSamples = np.asarray(allTrainArray)
+	# ------------------------------------------------------------------------
+	# DATASET SPLIT
+
+	print('... TEST ', w+1, ' ...')
+
 	testSamples = []
-
-	trainLabels = np.asarray(allTrainLabels)
 	testLabels = []
-
-	stackpick = []
 
 	# 25% des fichiers seront tirés au sort pour être les données de test
 	# テストのデータはデータベースの25パーセントから、ランドムで選択された
 
-	print('... separate test/train samples ...')
-	for i in range(len(allTestArray)//4): # on veut 25% sans la data augmentation
-		pick = np.random.randint(len(allTestArray))
+	print('... separate test/train data ...')
+	for i in range(len(allTrainSpec)//4): # on veut 25% sans la data augmentation
+		pick = np.random.randint(len(allTrainSpec))
 
-		testSamples.append(allTestArray[pick])
-		testLabels.append(allTestLabels[pick])
+		testSamples.append(allTrainSpec[pick])
+		testLabels.append(allLabelsSpec[pick])
 
-		stackpick.append(pick)
+		allTrainSpec = np.delete(allTrainSpec, pick, 0)
+		allTrainPitch = np.delete(allTrainPitch, pick, 0)
+		allTrainReverb = np.delete(allTrainReverb, pick, 0)
+		allTrainNoise = np.delete(allTrainNoise, pick, 0)
+
+		allLabelsSpec = np.delete(allLabelsSpec, pick, 0)
+		allLabelsPitch = np.delete(allLabelsPitch, pick, 0)
+		allLabelsReverb = np.delete(allLabelsReverb, pick, 0)
+		allLabelsNoise = np.delete(allLabelsNoise, pick, 0)
 
 
-	stackpick = np.asarray(stackpick)
-	stackpick = np.sort(stackpick)
+	# print(allTrainSpec.shape)
+	# print(allTrainPitch.shape)
+	# print(allTrainReverb.shape)
+	# print(allTrainNoise.shape)
 
-	for j in range(len(stackpick)):
+	trainSamples = np.concatenate([allTrainSpec, allTrainPitch, allTrainReverb, allTrainNoise])
+	trainLabels = np.concatenate([allLabelsSpec, allLabelsPitch, allLabelsReverb, allLabelsNoise])
 
-		for k in range(4):
-			trainSamples = np.delete(trainSamples, stackpick[j], 0)
-			trainLabels = np.delete(trainLabels, stackpick[j], 0)
-
-		stackpick = stackpick-4
-
-	print(len(testSamples), ' samples have been chosen to be test samples.')
+	print('... arrays are ready ...')
 
 	print(trainSamples.shape)
 	print(trainLabels.shape)
@@ -444,13 +465,10 @@ for w in range(10):
 	testLabels = np.asarray(testLabels)
 	print(testLabels.shape)
 
-	# ========================================================================
 	# ------------------------------------------------------------------------
 	# PREPROCESSING
 
-	# sequence = int(samples.shape[1])
-
-	# samples = samples.reshape(len(samples),128,44)
+	print('... prepare 2D arrays ...')
 
 	trainLabels = np.argmax(trainLabels, axis=1)
 	testLabels = np.argmax(testLabels, axis=1)
@@ -461,15 +479,17 @@ for w in range(10):
 	y_test = np.asarray(testLabels)
 
 	# ------------------------------------------------------------------------
-	# CONSTRUCTION DU RÉSEAU
-	#Import svm model
-	print('... test models ...')
+	# TRAIN AND TEST
+
+	print('... train & test models ...')
 	ModelSVCrbf()
 	ModelSVCpoly()
 	ModelSVClinear()
 	ModelTree()
 	ModelkNN()
 	ModelRandomForest()
+	# ModelAdaBoost()
+	# ModelLightGBM()
 
 ACC_ModelSVCrbf = np.asarray(ACC_ModelSVCrbf).sum() / len(ACC_ModelSVCrbf)
 ACC_ModelSVCpoly = np.asarray(ACC_ModelSVCpoly).sum() / len(ACC_ModelSVCpoly)
@@ -477,19 +497,15 @@ ACC_ModelSVClinear = np.asarray(ACC_ModelSVClinear).sum() / len(ACC_ModelSVCline
 ACC_ModelTree = np.asarray(ACC_ModelTree).sum() / len(ACC_ModelTree)
 ACC_ModelkNN = np.asarray(ACC_ModelkNN).sum() / len(ACC_ModelkNN)
 ACC_ModelRandomForest = np.asarray(ACC_ModelRandomForest).sum() / len(ACC_ModelRandomForest)
-ACC_ModelAdaBoost = np.asarray(ACC_ModelAdaBoost).sum() / len(ACC_ModelAdaBoost)
-ACC_ModelLightGBM = np.asarray(ACC_ModelLightGBM).sum() / len(ACC_ModelLightGBM)
-# ACC_ModelBagging = np.asarray(ACC_ModelBagging).sum() / len(ACC_ModelBagging)
-# ACC_ModelIsolationForest = np.asarray(ACC_ModelIsolationForest).sum() / len(ACC_ModelIsolationForest)
+# ACC_ModelAdaBoost = np.asarray(ACC_ModelAdaBoost).sum() / len(ACC_ModelAdaBoost)
+# ACC_ModelLightGBM = np.asarray(ACC_ModelLightGBM).sum() / len(ACC_ModelLightGBM)
 
-print("... final accuracy results ...")
+print("... final accuracy results on ", howManyTests, " tests ...")
 print("ACC_ModelSVCrbf: ",ACC_ModelSVCrbf)
 print("ACC_ModelSVCpoly: ",ACC_ModelSVCpoly)
 print("ACC_ModelSVClinear: ",ACC_ModelSVClinear)
 print("ACC_ModelDecisionTree: ",ACC_ModelTree)
 print("ACC_ModelkNN: ",ACC_ModelkNN)
 print("ACC_ModelRandomForest: ",ACC_ModelRandomForest)
-print("ACC_ModelAdaBoost: ",ACC_ModelAdaBoost)
-print("ACC_ModelLightGBM: ",ACC_ModelLightGBM)
-# print("ACC_ModelBagging: ",ACC_ModelBagging)
-# print("ACC_ModelIsolationForest: ",ACC_ModelIsolationForest)
+# print("ACC_ModelAdaBoost: ",ACC_ModelAdaBoost)
+# print("ACC_ModelLightGBM: ",ACC_ModelLightGBM)
