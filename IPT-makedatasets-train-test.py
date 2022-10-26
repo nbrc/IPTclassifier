@@ -1,6 +1,7 @@
 import os, math, fnmatch, librosa, glob, csv, pickle
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from tensorflow.keras.utils import to_categorical
 from sklearn.preprocessing import MinMaxScaler
 from pysndfx import AudioEffectsChain
@@ -103,7 +104,7 @@ def ModelSVCrbf():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("SVC rbf Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("SVC rbf Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelSVCrbf.append(metrics.accuracy_score(y_test, y_pred))
 
 def ModelSVCpoly():
@@ -120,7 +121,7 @@ def ModelSVCpoly():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("SVC poly Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("SVC poly Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelSVCpoly.append(metrics.accuracy_score(y_test, y_pred))
 
 
@@ -138,7 +139,7 @@ def ModelSVClinear():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("SVC linear Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("SVC linear Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelSVClinear.append(metrics.accuracy_score(y_test, y_pred))
 
 def ModelTree():
@@ -155,7 +156,7 @@ def ModelTree():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("Decision Tree Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("Decision Tree Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelTree.append(metrics.accuracy_score(y_test, y_pred))
 
 def ModelkNN():
@@ -172,7 +173,7 @@ def ModelkNN():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("kNN Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("kNN Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelkNN.append(metrics.accuracy_score(y_test, y_pred))
 
 def ModelRandomForest():
@@ -189,7 +190,7 @@ def ModelRandomForest():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("Random Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("Random Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelRandomForest.append(metrics.accuracy_score(y_test, y_pred))
 
 def ModelAdaBoost():
@@ -206,7 +207,7 @@ def ModelAdaBoost():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("AdaBoost Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("AdaBoost Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelAdaBoost.append(metrics.accuracy_score(y_test, y_pred))
 
 def ModelLightGBM():
@@ -223,7 +224,7 @@ def ModelLightGBM():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("LightGBM Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("LightGBM Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelLightGBM.append(metrics.accuracy_score(y_test, y_pred))
 
 def ModelBagging():
@@ -240,7 +241,7 @@ def ModelBagging():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("Bagging Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("Bagging Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelBagging.append(metrics.accuracy_score(y_test, y_pred))
 
 
@@ -258,7 +259,7 @@ def ModelIsolationForest():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("Isolation Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("Isolation Forest Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelIsolationForest.append(metrics.accuracy_score(y_test, y_pred))
 
 def ModelMLP():
@@ -275,7 +276,7 @@ def ModelMLP():
 	from sklearn import metrics
 
 	# Model Accuracy: how often is the classifier correct?
-	print("MLP Accuracy:", metrics.accuracy_score(y_test, y_pred))
+	# print("MLP Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelMLP.append(metrics.accuracy_score(y_test, y_pred))
 
 
@@ -303,10 +304,9 @@ def findTechniques(soundFileName):
 			# techniqueName = techniqueName[1:]
 		# ajout du type dans la liste des types 
 		allTechniquesNames.append(techniqueName)
-		print('New technique created:', techniqueName)
+		# print('New technique created:', techniqueName)
 	else:
 		print('Error occured!')
-
 
 # ========================================================================
 
@@ -333,9 +333,9 @@ allTrainPitch = []
 allTrainReverb = []
 allTrainNoise = []
 
-print('... get spectrogram ...')
-for i in range(len(allSoundFilesPath)):
-	print(i+1, "/", len(allSoundFilesPath))
+# print('... get spectrogram ...')
+for i in tqdm (range(len(allSoundFilesPath)), desc="get spectrogram...", ascii=False):
+	# print(i+1, "/", len(allSoundFilesPath))
 	y, srate = librosa.load(allSoundFilesPath[i], sr=sampling, mono=True)
 	# supprime silence
 	yt, index = librosa.effects.trim(y)
@@ -367,7 +367,7 @@ for i in range(len(allSoundFilesPath)):
 	allTrainNoise.append(specArray)
 
 allTechniquesNames = []
-for i in range(len(allSoundFilesName)):
+for i in tqdm (range(len(allSoundFilesName)), desc='find techniques name...'):
 	findTechniques(allSoundFilesName[i])
 
 # ========================================================================
@@ -388,8 +388,8 @@ allLabelsPitch = []
 allLabelsReverb = []
 allLabelsNoise = []
 
-print('... generate labels ...')
-for i in range(len(allSoundFilesName)):
+
+for i in tqdm (range(len(allSoundFilesName)), desc='generate labels...', ascii=False):
 	for j in range(len(allTechniquesNames)):
 		if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
 			allLabelsSpec.append(techniqueLabels[j])
@@ -397,22 +397,17 @@ for i in range(len(allSoundFilesName)):
 			allLabelsReverb.append(techniqueLabels[j])
 			allLabelsNoise.append(techniqueLabels[j])
 
-# print(allTrainSpec.shape)
-# print(allTrainPitch.shape)
-# print(allTrainReverb.shape)
-# print(allTrainNoise.shape)
-
 # ========================================================================
 # 実験を開始する
 
-print("... classifiers would be tested", howManyTests, "times ...")
+# print("... classifiers would be tested", howManyTests, "times ...")
 
-for w in range(howManyTests):
+for w in tqdm (range(howManyTests), desc='train & test...'):
 
 	# ------------------------------------------------------------------------
 	# DATASET SPLIT
 
-	print('... TEST ', w+1, ' ...')
+	# print('... TEST ', w+1, ' ...')
 
 	exp_allTrainSpec = np.asarray(allTrainSpec)
 	exp_allTrainPitch = np.asarray(allTrainPitch)
@@ -430,7 +425,7 @@ for w in range(howManyTests):
 	# 25% des fichiers seront tirés au sort pour être les données de test
 	# テストのデータはデータベースの25パーセントから、ランドムで選択された
 
-	print('... separate test/train data ...')
+	# print('... separate test/train data ...')
 	for i in range(len(allTrainSpec)//4): # on veut 25% sans la data augmentation
 		pick = np.random.randint(len(exp_allTrainSpec))
 
@@ -447,28 +442,22 @@ for w in range(howManyTests):
 		exp_allLabelsReverb = np.delete(exp_allLabelsReverb, pick, 0)
 		exp_allLabelsNoise = np.delete(exp_allLabelsNoise, pick, 0)
 
-
-	# print(allTrainSpec.shape)
-	# print(allTrainPitch.shape)
-	# print(allTrainReverb.shape)
-	# print(allTrainNoise.shape)
-
 	trainSamples = np.concatenate([exp_allTrainSpec, exp_allTrainPitch, exp_allTrainReverb, exp_allTrainNoise])
 	trainLabels = np.concatenate([exp_allLabelsSpec, exp_allLabelsPitch, exp_allLabelsReverb, exp_allLabelsNoise])
 
-	print('... arrays are ready ...')
+	# print('... arrays are ready ...')
 
-	print(trainSamples.shape)
-	print(trainLabels.shape)
+	# print(trainSamples.shape)
+	# print(trainLabels.shape)
 	testSamples = np.asarray(testSamples)
-	print(testSamples.shape)
+	# print(testSamples.shape)
 	testLabels = np.asarray(testLabels)
-	print(testLabels.shape)
+	# print(testLabels.shape)
 
 	# ------------------------------------------------------------------------
 	# PREPROCESSING
 
-	print('... prepare 2D arrays ...')
+	# print('... prepare 2D arrays ...')
 
 	trainLabels = np.argmax(trainLabels, axis=1)
 	testLabels = np.argmax(testLabels, axis=1)
@@ -481,7 +470,7 @@ for w in range(howManyTests):
 	# ------------------------------------------------------------------------
 	# TRAIN AND TEST
 
-	print('... train & test models ...')
+	# print('... train & test models ...')
 	ModelSVCrbf()
 	ModelSVCpoly()
 	ModelSVClinear()
