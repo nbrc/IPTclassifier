@@ -334,7 +334,7 @@ allTrainReverb = []
 allTrainNoise = []
 
 # print('... get spectrogram ...')
-for i in tqdm (range(len(allSoundFilesPath)), desc="analyze soundfiles...", ascii=False):
+for i in tqdm (range(len(allSoundFilesPath)), desc="analyze soundfiles", ascii=False):
 	# print(i+1, "/", len(allSoundFilesPath))
 	y, srate = librosa.load(allSoundFilesPath[i], sr=sampling, mono=True)
 	# supprime silence
@@ -367,7 +367,7 @@ for i in tqdm (range(len(allSoundFilesPath)), desc="analyze soundfiles...", asci
 	allTrainNoise.append(specArray)
 
 allTechniquesNames = []
-for i in tqdm (range(len(allSoundFilesName)), desc='find techniques name...'):
+for i in tqdm (range(len(allSoundFilesName)), desc='find techniques name'):
 	findTechniques(allSoundFilesName[i])
 
 # ========================================================================
@@ -389,7 +389,7 @@ allLabelsReverb = []
 allLabelsNoise = []
 
 
-for i in tqdm (range(len(allSoundFilesName)), desc='generate labels...', ascii=False):
+for i in tqdm (range(len(allSoundFilesName)), desc='generate labels', ascii=False):
 	for j in range(len(allTechniquesNames)):
 		if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
 			allLabelsSpec.append(techniqueLabels[j])
@@ -402,7 +402,7 @@ for i in tqdm (range(len(allSoundFilesName)), desc='generate labels...', ascii=F
 
 # print("... classifiers would be tested", howManyTests, "times ...")
 
-for w in tqdm (range(howManyTests), desc='train & test...'):
+for w in tqdm (range(howManyTests), desc='train & test'):
 
 	# ------------------------------------------------------------------------
 	# DATASET SPLIT
