@@ -315,7 +315,7 @@ path = os.path.dirname(__file__)+'/database/'
 allSoundFilesPath = glob.glob(path+'/*/*.wav')
 allSoundFilesName = []
 
-print('... get file path ...')
+print('... parse soundfiles ...')
 for path in range(len(allSoundFilesPath)):
 	positions = []
 	soundFileName = ''
@@ -334,7 +334,7 @@ allTrainReverb = []
 allTrainNoise = []
 
 # print('... get spectrogram ...')
-for i in tqdm (range(len(allSoundFilesPath)), desc="get spectrogram...", ascii=False):
+for i in tqdm (range(len(allSoundFilesPath)), desc="analyze soundfiles...", ascii=False):
 	# print(i+1, "/", len(allSoundFilesPath))
 	y, srate = librosa.load(allSoundFilesPath[i], sr=sampling, mono=True)
 	# supprime silence
