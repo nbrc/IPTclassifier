@@ -15,6 +15,7 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.ensemble import BaggingClassifier
 from sklearn.ensemble import IsolationForest
+from sklearn.neural_network import MLPClassifier
 
 sampling = 24000
 
@@ -30,7 +31,7 @@ ACC_ModelSVCrbf = []
 ACC_ModelSVCpoly = []
 ACC_ModelSVClinear = []
 
-howManyTests = 10
+howManyTests = 1
 
 # ========================================================================
 # 音響分析関数
@@ -70,23 +71,6 @@ def add_noise(x):
 	rate = (random_number/1000) + 1e-9
 	return x+rate*np.random.randn(len(x))
 
-# data augmentation: shift sound in timeframe
-def shift_sound(x):
-	random_number = np.random.random_sample()
-	rate = (random_number*2) + 1e-9
-	return np.roll(x, int(len(x)//rate))
-
-# data augmentation: stretch sound
-def stretch_sound(x):
-    input_length = len(x)
-    random_number = np.random.random_sample()
-    rate = random_number * 1.5 # jusqu'à 1.5 x la vitesse originale
-    x = librosa.effects.time_stretch(x, rate=rate)
-    if len(x)>input_length:
-        return x[:input_length]
-    else:
-        return np.pad(x, (0, max(0, input_length - len(x))), "constant")
-
 # ========================================================================
 #　アルゴリズム
 
@@ -123,7 +107,6 @@ def ModelSVCpoly():
 	# Model Accuracy: how often is the classifier correct?
 	# print("SVC poly Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelSVCpoly.append(metrics.accuracy_score(y_test, y_pred))
-
 
 def ModelSVClinear():
 	#Create a svm Classifier
@@ -244,7 +227,6 @@ def ModelBagging():
 	# print("Bagging Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelBagging.append(metrics.accuracy_score(y_test, y_pred))
 
-
 def ModelIsolationForest():
 	#Create a svm Classifier
 	clf = IsolationForest()
@@ -278,7 +260,6 @@ def ModelMLP():
 	# Model Accuracy: how often is the classifier correct?
 	# print("MLP Accuracy:", metrics.accuracy_score(y_test, y_pred))
 	ACC_ModelMLP.append(metrics.accuracy_score(y_test, y_pred))
-
 
 def findTechniques(soundFileName):
 	for j in range(len(allTechniquesNames)):
@@ -328,10 +309,10 @@ for path in range(len(allSoundFilesPath)):
 		soundFileName += soundFilePath[i]
 	allSoundFilesName.append(soundFileName)
 
-allTrainSpec = []
-allTrainPitch = []
-allTrainReverb = []
-allTrainNoise = []
+trainSamples = []
+testSamples = []
+trainLabels = []
+testLabels = []
 
 # print('... get spectrogram ...')
 for i in tqdm (range(len(allSoundFilesPath)), desc="analyze soundfiles", ascii=False):
@@ -351,20 +332,25 @@ for i in tqdm (range(len(allSoundFilesPath)), desc="analyze soundfiles", ascii=F
 		N = (nbr_de_samples-len(y1s))
 		y1s = np.concatenate([y1s, np.zeros(N)])
 
-	specArray = get_spectrogram(y1s)
-	allTrainSpec.append(specArray)
+	if i%4 == 0:
+		specArray = get_spectrogram(y1s)
+		testSamples.append(specArray)
 
-	y2 = pitch_shift_sound(y1s)
-	specArray = get_spectrogram(y2)
-	allTrainPitch.append(specArray)
+	else:
+		specArray = get_spectrogram(y1s)
+		trainSamples.append(specArray)
 
-	y3 = reverb(y1s)
-	specArray = get_spectrogram(y3)
-	allTrainReverb.append(specArray)
+		y2 = pitch_shift_sound(y1s)
+		specArray = get_spectrogram(y2)
+		trainSamples.append(specArray)
 
-	y4 = add_noise(y1s)
-	specArray = get_spectrogram(y4)
-	allTrainNoise.append(specArray)
+		y3 = reverb(y1s)
+		specArray = get_spectrogram(y3)
+		trainSamples.append(specArray)
+
+		y4 = add_noise(y1s)
+		specArray = get_spectrogram(y4)
+		trainSamples.append(specArray)
 
 allTechniquesNames = []
 for i in tqdm (range(len(allSoundFilesName)), desc='find techniques name'):
@@ -383,74 +369,32 @@ techniquesEncoding = [techniquesMapping[techniques] for techniques in allTechniq
 # ONE-HOTエンコーディング
 techniqueLabels = to_categorical(techniquesEncoding)
 
-allLabelsSpec = []
-allLabelsPitch = []
-allLabelsReverb = []
-allLabelsNoise = []
-
-
 for i in tqdm (range(len(allSoundFilesName)), desc='generate labels', ascii=False):
-	for j in range(len(allTechniquesNames)):
-		if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
-			allLabelsSpec.append(techniqueLabels[j])
-			allLabelsPitch.append(techniqueLabels[j])
-			allLabelsReverb.append(techniqueLabels[j])
-			allLabelsNoise.append(techniqueLabels[j])
+	if i%4 == 0:
+		for j in range(len(allTechniquesNames)):
+			if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[j]+'-*-*')):
+				testLabels.append(techniqueLabels[j])
+	else:
+		for k in range(len(allTechniquesNames)):
+			if fnmatch.fnmatch(allSoundFilesName[i], ('*-'+allTechniquesNames[k]+'-*-*')):
+				for m in range(4):
+					trainLabels.append(techniqueLabels[k])
 
 # ========================================================================
 # 実験を開始する
-
-# print("... classifiers would be tested", howManyTests, "times ...")
 
 for w in tqdm (range(howManyTests), desc='train & test'):
 
 	# ------------------------------------------------------------------------
 	# DATASET SPLIT
 
-	# print('... TEST ', w+1, ' ...')
-
-	exp_allTrainSpec = np.asarray(allTrainSpec)
-	exp_allTrainPitch = np.asarray(allTrainPitch)
-	exp_allTrainReverb = np.asarray(allTrainReverb)
-	exp_allTrainNoise = np.asarray(allTrainNoise)
-
-	exp_allLabelsSpec = np.asarray(allLabelsSpec)
-	exp_allLabelsPitch = np.asarray(allLabelsPitch)
-	exp_allLabelsReverb = np.asarray(allLabelsReverb)
-	exp_allLabelsNoise = np.asarray(allLabelsNoise)
-
-	testSamples = []
-	testLabels = []
-
-	# 25% des fichiers seront tirés au sort pour être les données de test
-	# テストのデータはデータベースの25パーセントから、ランドムで選択された
-
-	# print('... separate test/train data ...')
-	for i in range(len(allTrainSpec)//4): # on veut 25% sans la data augmentation
-		pick = np.random.randint(len(exp_allTrainSpec))
-
-		testSamples.append(exp_allTrainSpec[pick])
-		testLabels.append(exp_allLabelsSpec[pick])
-
-		exp_allTrainSpec = np.delete(exp_allTrainSpec, pick, 0)
-		exp_allTrainPitch = np.delete(exp_allTrainPitch, pick, 0)
-		exp_allTrainReverb = np.delete(exp_allTrainReverb, pick, 0)
-		exp_allTrainNoise = np.delete(exp_allTrainNoise, pick, 0)
-
-		exp_allLabelsSpec = np.delete(exp_allLabelsSpec, pick, 0)
-		exp_allLabelsPitch = np.delete(exp_allLabelsPitch, pick, 0)
-		exp_allLabelsReverb = np.delete(exp_allLabelsReverb, pick, 0)
-		exp_allLabelsNoise = np.delete(exp_allLabelsNoise, pick, 0)
-
-	trainSamples = np.concatenate([exp_allTrainSpec, exp_allTrainPitch, exp_allTrainReverb, exp_allTrainNoise])
-	trainLabels = np.concatenate([exp_allLabelsSpec, exp_allLabelsPitch, exp_allLabelsReverb, exp_allLabelsNoise])
-
-	# print('... arrays are ready ...')
-
+	trainSamples = np.asarray(trainSamples)
 	# print(trainSamples.shape)
-	# print(trainLabels.shape)
 	testSamples = np.asarray(testSamples)
 	# print(testSamples.shape)
+
+	trainLabels = np.asarray(trainLabels)
+	# print(trainLabels.shape)
 	testLabels = np.asarray(testLabels)
 	# print(testLabels.shape)
 
@@ -462,9 +406,11 @@ for w in tqdm (range(howManyTests), desc='train & test'):
 	trainLabels = np.argmax(trainLabels, axis=1)
 	testLabels = np.argmax(testLabels, axis=1)
 
-	X_train_2dim = np.asarray(trainSamples).reshape(len(trainSamples),-1)
+	X_train_2dim = np.asarray(trainSamples).reshape(trainSamples.shape[0],-1)
+	# print(X_train_2dim.shape)
 	y_train = np.asarray(trainLabels)
-	X_test_2dim = np.asarray(testSamples).reshape(len(testSamples),-1)
+	X_test_2dim = np.asarray(testSamples).reshape(testSamples.shape[0],-1)
+	# print(X_test_2dim.shape)
 	y_test = np.asarray(testLabels)
 
 	# ------------------------------------------------------------------------
@@ -479,6 +425,7 @@ for w in tqdm (range(howManyTests), desc='train & test'):
 	ModelRandomForest()
 	# ModelAdaBoost()
 	# ModelLightGBM()
+	ModelMLP()
 
 ACC_ModelSVCrbf = np.asarray(ACC_ModelSVCrbf).sum() / len(ACC_ModelSVCrbf)
 ACC_ModelSVCpoly = np.asarray(ACC_ModelSVCpoly).sum() / len(ACC_ModelSVCpoly)
@@ -488,6 +435,7 @@ ACC_ModelkNN = np.asarray(ACC_ModelkNN).sum() / len(ACC_ModelkNN)
 ACC_ModelRandomForest = np.asarray(ACC_ModelRandomForest).sum() / len(ACC_ModelRandomForest)
 # ACC_ModelAdaBoost = np.asarray(ACC_ModelAdaBoost).sum() / len(ACC_ModelAdaBoost)
 # ACC_ModelLightGBM = np.asarray(ACC_ModelLightGBM).sum() / len(ACC_ModelLightGBM)
+ACC_ModelMLP = np.asarray(ACC_ModelMLP).sum() / len(ACC_ModelMLP)
 
 print("... final accuracy results on ", howManyTests, " tests ...")
 print("ACC_ModelSVCrbf: ",ACC_ModelSVCrbf)
@@ -498,3 +446,4 @@ print("ACC_ModelkNN: ",ACC_ModelkNN)
 print("ACC_ModelRandomForest: ",ACC_ModelRandomForest)
 # print("ACC_ModelAdaBoost: ",ACC_ModelAdaBoost)
 # print("ACC_ModelLightGBM: ",ACC_ModelLightGBM)
+print("ACC_ModelMLP: ", ACC_ModelMLP)
